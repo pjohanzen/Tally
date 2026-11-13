@@ -50,7 +50,7 @@ Debug view: add `?debug=1` to the URL to see the aligned pages with the field bo
 ## Limits / next steps
 
 - The template (`templates/ewacs-v1.json`) was mapped from one filled sample, and the page 1–2 references are blank scans. A clean **blank scan of pages 3–5** would make the references cleaner.
-- Tested on the sample and on a rotated, rescaled, blurred 150 dpi copy: every checkbox was either correct or sent to the AI as unsure. Spot-check the first real batch against the paper forms.
+- Tested on the sample and on a rotated, rescaled, blurred 150 dpi copy: every checkbox was correct or flagged for checking. Handwriting recognition is the weakest part (names and messy writing especially), so spot-check the first real batch against the paper forms.
 - A different questionnaire needs its own template JSON plus reference page images.
 
 Third-party libraries (in `vendor/`): pdf.js, SheetJS Community Edition, OpenCV.js, transformers.js + ONNX Runtime Web (all Apache-2.0 / MIT). Model: microsoft/trocr-small-handwritten (ONNX export by Xenova).
