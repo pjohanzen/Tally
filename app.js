@@ -3,7 +3,7 @@
  * -> per-field local alignment (matchTemplate) -> checkboxes by ink count -> handwriting crops for the AI sheets.
  */
 'use strict';
-const APP_VERSION = '2026.11.13-4';
+const APP_VERSION = '2026.11.13-5';
 
 const CFG = {
   template: 'templates/ewacs-v1.json',
@@ -619,7 +619,7 @@ async function processAll() {
   S.progAI = (t, frac) => prog(t, frac === undefined ? undefined : 0.5 + frac * 0.5);
   // check the chosen reader before spending time on the PDFs
   if (settings.reader !== 'offline') {
-    const h = await helperHealth(), name = settings.reader === 'claude' ? 'Claude Code' : 'Gemini CLI';
+    const h = await helperHealth(), name = settings.reader === 'claude' ? 'Claude Code' : 'Antigravity CLI (agy)';
     if (!h.ok) { prog('The AI helper is not running. Click Copy above, paste it in Terminal, press Enter, then click Process again.'); S.busy = false; updateButtons(); return; }
     if (!h.engines || !h.engines[settings.reader]) { prog(`The helper is running but ${name} was not found on this computer. Install it and log in once (see the README), then try again.`); S.busy = false; updateButtons(); return; }
   }
@@ -681,10 +681,10 @@ function renderSettings() {
 }
 async function checkHelper() {
   const el = $('helperStatus'); el.textContent = 'checking…'; el.className = 'pill';
-  const h = await helperHealth(), name = settings.reader === 'claude' ? 'Claude Code' : 'Gemini CLI';
+  const h = await helperHealth(), name = settings.reader === 'claude' ? 'Claude Code' : 'Gemini (agy)';
   if (!h.ok) { el.textContent = 'Helper not running'; el.className = 'pill err'; return; }
   const v = h.engines && h.engines[settings.reader];
-  el.textContent = v ? `Helper running · ${name} ${String(v).split(' ')[0]}` : `Helper running · ${name} not found`;
+  el.textContent = v ? `Helper running · ${name} found` : `Helper running · ${name} not found`;
   el.className = 'pill ' + (v ? 'ok' : 'err');
 }
 async function retryRemaining() {

@@ -4,13 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>E-WACS Survey Encoder</title>
-<link rel="stylesheet" href="style.css?v=2026.11.13-4">
+<link rel="stylesheet" href="style.css?v=2026.11.13-5">
 </head>
 <body>
 <header>
   <h1>E-WACS Survey Encoder</h1>
   <p class="sub">Upload scanned survey PDFs → get a CSV / Excel file. Everything runs in this browser; your PDFs are never uploaded.</p>
-  <div id="libstatus" class="pill">Loading tools…</div> <span class="muted ver">version 2026.11.13-4</span>
+  <div id="libstatus" class="pill">Loading tools…</div> <span class="muted ver">version 2026.11.13-5</span>
 </header>
 
 <main>
@@ -23,7 +23,7 @@
     <div class="reader">
       <div class="rhead">Read handwriting with</div>
       <label class="opt"><input type="radio" name="reader" value="claude"> <b>Claude</b> <span class="muted">your Claude Pro/Max subscription, through Claude Code</span></label>
-      <label class="opt"><input type="radio" name="reader" value="gemini"> <b>Gemini</b> <span class="muted">your Google AI Pro/Ultra subscription, through Gemini CLI</span></label>
+      <label class="opt"><input type="radio" name="reader" value="gemini"> <b>Gemini</b> <span class="muted">your Google AI Pro/Ultra subscription, through Antigravity CLI</span></label>
       <label class="opt"><input type="radio" name="reader" value="offline"> <b>Offline</b> <span class="muted">no AI, nothing leaves the computer, much less accurate</span></label>
       <div id="helperBox" class="sub-opt">
         <span id="helperStatus" class="pill">checking…</span>
@@ -76,6 +76,6 @@
 <script src="vendor/pdf.min.js"></script>
 <script src="vendor/xlsx.full.min.js"></script>
 <script src="vendor/opencv.js" async></script>
-<script src="app.js?v=2026.11.13-4"></script>
+<script src="app.js?v=2026.11.13-5"></script>
 </body>
 </html>

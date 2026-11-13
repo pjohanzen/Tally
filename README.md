@@ -11,18 +11,18 @@ Upload scanned, handwritten E-WACS survey PDFs and get a CSV / Excel file back.
 | Option | Uses | One-time setup |
 |---|---|---|
 | **Claude** | Your Claude Pro/Max subscription | Install Claude Code (https://code.claude.com), run `claude` once and log in with your Claude account |
-| **Gemini** | Your Google AI Pro/Ultra subscription | Install Node.js 20+, then `npm install -g @google/gemini-cli`, run `gemini` once and choose **Login with Google** with the account that has the subscription |
+| **Gemini** | Your Google AI Pro/Ultra subscription | Install Antigravity CLI (Google's replacement for Gemini CLI for personal accounts): Mac `curl -fsSL https://antigravity.google/cli/install.sh \| bash`, Windows PowerShell `irm https://antigravity.google/cli/install.ps1 \| iex`. Then run `agy` once and sign in with the Google account that has the subscription |
 | **Offline** | Nothing | None. Much less accurate; names and some digits will be wrong |
 
-No API keys are used. The helper removes `ANTHROPIC_API_KEY` / `GEMINI_API_KEY` / `GOOGLE_API_KEY` from the environment so usage always comes from the subscription login. Each person's choice is saved in their own browser.
+Requires Node.js 18+ for the helper itself. No API keys are used: the helper removes `ANTHROPIC_API_KEY` / `GEMINI_API_KEY` / `GOOGLE_API_KEY` from the environment so usage always comes from the subscription login. Each person's choice is saved in their own browser.
 
 ### Each time you process a batch
 
-The tool shows a ready-made command with a **Copy** button. Paste it into Terminal (Mac) or PowerShell (Windows), press Enter, and leave the window open. It downloads the latest `ai-helper.mjs` from the tool site and starts it. The status in the tool turns green ("Helper running · Claude Code …" or "… Gemini CLI …").
+The tool shows a ready-made command with a **Copy** button. Paste it into Terminal (Mac) or PowerShell (Windows), press Enter, and leave the window open. It downloads the latest `ai-helper.mjs` from the tool site and starts it. The status in the tool turns green ("Helper running · Claude Code found" or "… Gemini (agy) found").
 
 - The first time, the browser may ask to let the site access "devices on your local network". Click **Allow**, because that's how the page talks to the helper.
 - The helper only accepts requests from github.io pages and localhost, sends only the handwriting sheet images to the AI, and deletes them after each batch.
-- To choose a model, set `EWACS_CLAUDE_MODEL` (e.g. `sonnet`) or `EWACS_GEMINI_MODEL` (e.g. `pro` / `flash`) before starting the helper.
+- To choose a model, set `EWACS_CLAUDE_MODEL` (e.g. `sonnet`) or `EWACS_GEMINI_MODEL` (a slug from `agy models`) before starting the helper.
 
 ## How to use
 

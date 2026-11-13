@@ -2,7 +2,9 @@
 // E-WACS Survey Encoder — AI helper.
 // Lets the web tool use YOUR AI subscription through the official command-line tools on this computer:
 //   • Claude  → Claude Code  (log in once with `claude`  using your Claude Pro/Max account)
-//   • Gemini  → Gemini CLI   (log in once with `gemini` using your Google AI Pro/Ultra account)
+//   • Gemini  → Antigravity CLI `agy` (log in once with `agy` using your Google AI Pro/Ultra account).
+//               Google replaced Gemini CLI with Antigravity CLI for personal subscriptions in June 2026;
+//               the old `gemini` command is still used as a fallback for work accounts that have it.
 // Run:  node ai-helper.mjs   and keep the window open while the web tool processes PDFs.
 // Only the small handwriting sheet images are sent to the AI; nothing else leaves your computer.
 
@@ -10,7 +12,7 @@ import http from 'node:http';
 import { spawn } from 'node:child_process';
 import { mkdtempSync, writeFileSync, rmSync, readFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, dirname } from 'node:path';
+import { join, dirname, basename } from 'node:path';
 
 const PORT = Number(process.env.EWACS_PORT || 8787);
 const ALLOWED_ORIGINS = [/^https:\/\/[a-z0-9-]+\.github\.io$/i, /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/];
@@ -18,7 +20,7 @@ const IS_WIN = process.platform === 'win32';
 
 const ENGINES = {
   claude: { bin: process.env.EWACS_CLAUDE_BIN || 'claude', pkg: '@anthropic-ai/claude-code', model: process.env.EWACS_CLAUDE_MODEL || '', cli: null, version: null },
-  gemini: { bin: process.env.EWACS_GEMINI_BIN || 'gemini', pkg: '@google/gemini-cli', model: process.env.EWACS_GEMINI_MODEL || '', cli: null, version: null },
+  gemini: { bin: process.env.EWACS_GEMINI_BIN || 'agy', alt: 'gemini', pkg: '@google/gemini-cli', model: process.env.EWACS_GEMINI_MODEL || '', cli: null, version: null, kind: null },
 };
 
 // Use the subscription login, never a pay-per-use API key that happens to be set in the environment.
@@ -46,8 +48,10 @@ function run(cmd, args, cwd, opts = {}) {
 async function resolveCli(name) {
   const e = ENGINES[name];
   if (e.cli) return e.cli;
-  const direct = await run(e.bin, ['--version'], tmpdir());
-  if (direct.code === 0) { e.version = direct.out.trim().split('\n').pop(); return (e.cli = { cmd: e.bin, pre: [] }); }
+  for (const b of [e.bin, e.alt].filter(Boolean)) {
+    const direct = await run(b, ['--version'], tmpdir());
+    if (direct.code === 0) { e.version = `${b} ${direct.out.trim().split('\n').pop()}`; e.kind = /gemini(\.\w+)?$/i.test(basename(b)) ? 'gemini' : 'agy'; return (e.cli = { cmd: b, pre: [] }); }
+  }
   if (IS_WIN) {
     const root = (await run('npm root -g', [], tmpdir(), { shell: true })).out.trim();
     const pj = join(root, ...e.pkg.split('/'), 'package.json');
@@ -56,7 +60,7 @@ async function resolveCli(name) {
       const rel = typeof pkg.bin === 'string' ? pkg.bin : Object.values(pkg.bin || {})[0];
       const entry = join(dirname(pj), rel);
       const v = await run(process.execPath, [entry, '--version'], tmpdir());
-      if (v.code === 0) { e.version = v.out.trim().split('\n').pop(); return (e.cli = { cmd: process.execPath, pre: [entry] }); }
+      if (v.code === 0) { e.version = v.out.trim().split('\n').pop(); e.kind = name === 'gemini' ? 'gemini' : name; return (e.cli = { cmd: process.execPath, pre: [entry] }); }
     }
   }
   return null;
@@ -71,7 +75,7 @@ function extractJson(text) {
 
 async function readSheets({ engine, images, prompt, schema }) {
   const cli = await resolveCli(engine);
-  if (!cli) throw new Error(`${engine === 'claude' ? 'Claude Code' : 'Gemini CLI'} is not installed or not on PATH`);
+  if (!cli) throw new Error(`${engine === 'claude' ? 'Claude Code' : 'Antigravity CLI (agy)'} is not installed or not on PATH`);
   const E = ENGINES[engine];
   const dir = mkdtempSync(join(tmpdir(), 'ewacs-'));
   try {
@@ -85,11 +89,14 @@ async function readSheets({ engine, images, prompt, schema }) {
       const p = `${prompt}\n\nRead these image files in this folder, every one of them: ${names.join(', ')}`;
       args = ['-p', p, '--output-format', 'json', '--json-schema', JSON.stringify(schema), '--allowedTools', 'Read',
         '--system-prompt', 'You transcribe handwriting from cropped survey images. Read each image file you are given with the Read tool, then answer only with the requested JSON. Mark unsure readings.'];
+    } else if (E.kind === 'agy') {
+      const p = `${prompt}\n\nThe images are the PNG files in the current folder: ${names.map((n) => '@' + n).join(' ')}\nLook at every one of them. Do not run commands and do not write any files. Answer only with the JSON.`;
+      args = ['-p', p, '--output-format', 'json', '--json-schema', JSON.stringify(schema)];
     } else {
       const p = `${prompt}\n\nDo not use any tools and do not write files. Reply with ONLY one JSON object, no markdown, in exactly this shape:\n{"values":[{"id":"12n","value":"3","unsure":false}]}\n\nImages: ${names.map((n) => '@' + n).join(' ')}`;
       args = ['-p', p, '-o', 'json', '--skip-trust'];
     }
-    if (E.model) args.push(engine === 'claude' ? '--model' : '-m', E.model);
+    if (E.model) args.push(engine === 'gemini' && E.kind === 'gemini' ? '-m' : '--model', E.model);
     const t0 = Date.now();
     const r = await run(cli.cmd, [...cli.pre, ...args], dir);
     let j = null; try { j = JSON.parse(r.out); } catch (_) { j = extractJson(r.out); }
@@ -99,8 +106,8 @@ async function readSheets({ engine, images, prompt, schema }) {
       if (j.is_error || !j.structured_output) throw new Error(String(j.result || j.subtype || 'Claude returned no structured output').slice(0, 600));
       result = j.structured_output;
     } else {
-      if (j.error) throw new Error(String(j.error.message || JSON.stringify(j.error)).slice(0, 600));
-      result = extractJson(j.response);
+      if (j.error || j.status === 'ERROR') throw new Error(String((j.error && (j.error.message || JSON.stringify(j.error))) || j.response || 'Gemini error').slice(0, 600));
+      result = j.structured_output || extractJson(j.response);
       if (!result || !Array.isArray(result.values)) throw new Error('Gemini did not return the expected JSON: ' + String(j.response || '').slice(0, 300));
     }
     console.log(`  ${engine}: read ${images.length} sheet(s) in ${((Date.now() - t0) / 1000).toFixed(0)} s`);
@@ -153,7 +160,7 @@ server.listen(PORT, '127.0.0.1', async () => {
   console.log(`E-WACS AI helper running on http://127.0.0.1:${PORT}`);
   for (const k of Object.keys(ENGINES)) {
     const ok = await resolveCli(k);
-    console.log(`  ${k === 'claude' ? 'Claude Code' : 'Gemini CLI '}: ${ok ? 'found ' + (ENGINES[k].version || '') : 'not found'}`);
+    console.log(`  ${k === 'claude' ? 'Claude      ' : 'Gemini      '}: ${ok ? 'found ' + (ENGINES[k].version || '') : k === 'claude' ? 'Claude Code not found' : 'Antigravity CLI (agy) not found'}`);
   }
   console.log('Keep this window open while the web tool processes PDFs. Press Ctrl+C to stop.');
 });
