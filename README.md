@@ -3,35 +3,30 @@
 Upload scanned, handwritten E-WACS survey PDFs and get a CSV / Excel file back.
 
 - **Checkboxes:** read on your computer. No AI is used.
-- **Handwriting:** only small cut-outs of the handwritten boxes are sent to the AI you pick, never whole pages.
+- **Handwriting:** only small cut-outs of the handwritten boxes are sent to the AI you pick (Claude or Gemini, on your own subscription), never whole pages.
 - **Usage:** roughly 10–15× less than uploading the PDFs to a chat.
 
 ## Pick how handwriting is read
 
-| Option | Who it's for | Setup |
+| Option | Uses | One-time setup |
 |---|---|---|
-| **Claude** | Claude Pro/Max subscribers | Claude Code installed and logged in, plus the helper running (below) |
-| **Gemini** | Anyone | A free API key from https://aistudio.google.com/apikey, pasted into the tool once |
-| **Offline** | No AI at all | Nothing. Much less accurate; names and some digits will be wrong |
+| **Claude** | Your Claude Pro/Max subscription | Install Claude Code (https://code.claude.com), run `claude` once and log in with your Claude account |
+| **Gemini** | Your Google AI Pro/Ultra subscription | Install Node.js 20+, then `npm install -g @google/gemini-cli`, run `gemini` once and choose **Login with Google** with the account that has the subscription |
+| **Offline** | Nothing | None. Much less accurate; names and some digits will be wrong |
 
-The choice and the Gemini key are saved in each person's own browser.
+No API keys are used. The helper removes `ANTHROPIC_API_KEY` / `GEMINI_API_KEY` / `GOOGLE_API_KEY` from the environment so usage always comes from the subscription login. Each person's choice is saved in their own browser.
 
-### Claude setup (once per computer)
+### Each time you process a batch
 
-1. Install Claude Code (https://code.claude.com) and run `claude` once in Terminal to log in with your Claude account.
-2. Every time you process a batch, open Terminal and run:
-   ```bash
-   cd path/to/this/folder
-   node claude-helper.mjs
-   ```
-   Leave that window open. The tool shows "Helper running" when it can see it. You can also download `claude-helper.mjs` from the tool page.
-3. The first time, Chrome may ask to allow the site to access "devices on your local network". Click **Allow**, because that's how the page talks to the helper.
+The tool shows a ready-made command with a **Copy** button. Paste it into Terminal (Mac) or PowerShell (Windows), press Enter, and leave the window open. It downloads the latest `ai-helper.mjs` from the tool site and starts it. The status in the tool turns green ("Helper running · Claude Code …" or "… Gemini CLI …").
 
-The helper only accepts requests from github.io pages and localhost. It runs `claude -p` on your subscription (it removes any `ANTHROPIC_API_KEY`, so nothing is billed to an API account), and it deletes the temporary sheet images after each batch. Set `EWACS_MODEL=sonnet` (or another model) before `node claude-helper.mjs` to choose the model.
+- The first time, the browser may ask to let the site access "devices on your local network". Click **Allow**, because that's how the page talks to the helper.
+- The helper only accepts requests from github.io pages and localhost, sends only the handwriting sheet images to the AI, and deletes them after each batch.
+- To choose a model, set `EWACS_CLAUDE_MODEL` (e.g. `sonnet`) or `EWACS_GEMINI_MODEL` (e.g. `pro` / `flash`) before starting the helper.
 
 ## How to use
 
-1. Open https://pjohanzen.github.io/pdf-tool/ and choose Claude, Gemini or Offline.
+1. Open https://pjohanzen.github.io/pdf-tool/, choose Claude, Gemini or Offline, and (for Claude/Gemini) start the helper with the copied command.
 2. Optional: under **Known names**, list the barangays/puroks and surveyor names. Readings are matched to these spellings, and anything that doesn't match is flagged.
 3. Drop in the PDFs and click **Process PDFs**.
 4. Click **Download CSV** (or Excel).

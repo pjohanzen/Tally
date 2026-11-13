@@ -3,6 +3,7 @@
  * -> per-field local alignment (matchTemplate) -> checkboxes by ink count -> handwriting crops for the AI sheets.
  */
 'use strict';
+const APP_VERSION = '2026.11.13-4';
 
 const CFG = {
   template: 'templates/ewacs-v1.json',
@@ -442,17 +443,26 @@ async function readHandwriting(items, onStep) {
 
 /* ---------------- AI readers: Claude (via local helper) or Gemini (API key) ---------------- */
 const SETTINGS_KEY = 'ewacs-settings-v1';
+const IS_WIN = /Win/i.test(navigator.platform || navigator.userAgent);
+function defaultHelperCmd() {
+  const url = new URL('ai-helper.mjs', location.href).href;
+  return IS_WIN
+    ? `irm ${url} -OutFile $HOME\\ewacs-ai-helper.mjs; node $HOME\\ewacs-ai-helper.mjs`
+    : `curl -fsSL ${url} -o ~/ewacs-ai-helper.mjs && node ~/ewacs-ai-helper.mjs`;
+}
 const settings = (() => {
-  const d = { reader: 'claude', helperCmd: 'cd ~/Documents/stuff/pdf\\ less\\ usage/ewacs-encoder && node claude-helper.mjs', geminiKey: '', helperUrl: 'http://127.0.0.1:8787', barangays: '', surveyors: '' };
-  try { return Object.assign(d, JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}')); } catch (e) { return d; }
+  const d = { reader: 'claude', helperCmd: '', helperUrl: 'http://127.0.0.1:8787', barangays: '', surveyors: '' };
+  let s; try { s = Object.assign(d, JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}')); } catch (e) { s = d; }
+  if (!s.helperCmd || /claude-helper\.mjs/.test(s.helperCmd)) s.helperCmd = defaultHelperCmd();
+  if (!['claude', 'gemini', 'offline'].includes(s.reader)) s.reader = 'claude';
+  delete s.geminiKey; delete s.geminiModel;
+  return s;
 })();
 function saveSettings() { try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch (e) { /* private mode */ } }
 const listOf = (txt) => String(txt || '').split(/[\n;]+/).map((x) => x.trim()).filter(Boolean);
 
 const READ_SCHEMA = { type: 'object', properties: { values: { type: 'array', items: { type: 'object',
   properties: { id: { type: 'string' }, value: { type: 'string' }, unsure: { type: 'boolean' } }, required: ['id', 'value', 'unsure'] } } }, required: ['values'] };
-const GEMINI_SCHEMA = { type: 'OBJECT', properties: { values: { type: 'ARRAY', items: { type: 'OBJECT',
-  properties: { id: { type: 'STRING' }, value: { type: 'STRING' }, unsure: { type: 'BOOLEAN' } }, required: ['id', 'value', 'unsure'] } } }, required: ['values'] };
 
 function readerPrompt() {
   const b = listOf(settings.barangays), s = listOf(settings.surveyors);
@@ -498,57 +508,18 @@ async function helperHealth() {
   try { const r = await fetch(settings.helperUrl + '/health', { cache: 'no-store' }); return await r.json(); }
   catch (e) { return { ok: false, error: 'helper not running' }; }
 }
-async function readWithClaude(sheets, onStep) {
-  const per = 8, out = []; let done = 0;
+async function readWithHelper(engine, sheets, onStep) {
+  const per = engine === 'claude' ? 8 : 6, name = engine === 'claude' ? 'Claude' : 'Gemini';
+  let done = 0;
   for (let i = 0; i < sheets.length; i += per) {
     const group = sheets.slice(i, i + per);
-    onStep(`Reading handwriting with Claude: batch ${i / per + 1} of ${Math.ceil(sheets.length / per)}`, done / sheets.length);
+    onStep(`Reading handwriting with ${name}: batch ${i / per + 1} of ${Math.ceil(sheets.length / per)}`, done / sheets.length);
     const r = await fetch(settings.helperUrl + '/read', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ images: group.map((s) => s.url), prompt: readerPrompt(), schema: READ_SCHEMA }) });
+      body: JSON.stringify({ engine, images: group.map((s) => s.url), prompt: readerPrompt(), schema: READ_SCHEMA }) });
     const j = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(j.error || `helper error ${r.status}`);
-    out.push(...(j.values || [])); applyValues(j.values || []); done += group.length;
+    applyValues(j.values || []); done += group.length;
   }
-  return out;
-}
-
-async function geminiModel() {
-  if (settings.geminiModel) return settings.geminiModel;
-  const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?pageSize=200&key=${encodeURIComponent(settings.geminiKey)}`);
-  const j = await r.json();
-  if (!r.ok) throw new Error((j.error && j.error.message) || 'Gemini key not accepted');
-  const ok = (j.models || []).filter((m) => (m.supportedGenerationMethods || []).includes('generateContent')).map((m) => m.name.replace('models/', ''));
-  const ver = (n) => parseFloat((n.match(/gemini-(\d+(?:\.\d+)?)/) || [])[1] || 0);
-  const pick = ok.filter((n) => /^gemini-\d+(\.\d+)?-flash$/.test(n)).sort((a, b) => ver(b) - ver(a))[0]
-    || ok.filter((n) => /^gemini-\d+(\.\d+)?-flash(-latest|-preview[\w-]*)?$/.test(n)).sort((a, b) => ver(b) - ver(a))[0]
-    || ok.find((n) => n === 'gemini-flash-latest') || 'gemini-2.5-flash';
-  return pick;
-}
-async function readWithGemini(sheets, onStep) {
-  const model = await geminiModel(); S.geminiModel = model;
-  const per = 4, out = [];
-  for (let i = 0; i < sheets.length; i += per) {
-    const group = sheets.slice(i, i + per);
-    onStep(`Reading handwriting with Gemini (${model}): batch ${i / per + 1} of ${Math.ceil(sheets.length / per)}`, i / sheets.length);
-    const body = { contents: [{ role: 'user', parts: [{ text: readerPrompt() }, ...group.map((s) => ({ inline_data: { mime_type: 'image/png', data: s.url.split(',')[1] } }))] }],
-      generationConfig: { temperature: 0, responseMimeType: 'application/json', responseSchema: GEMINI_SCHEMA } };
-    let j = null;
-    for (let attempt = 0; attempt < 6; attempt++) {
-      const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(settings.geminiKey)}`,
-        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-      j = await r.json().catch(() => ({}));
-      if (r.ok) break;
-      if (r.status === 429 || r.status >= 500) {
-        const m = JSON.stringify(j).match(/"retryDelay":\s*"(\d+)/); const wait = (m ? +m[1] + 2 : 20 * (attempt + 1));
-        onStep(`Gemini limit reached, waiting ${wait} s…`, i / sheets.length); await sleep(wait * 1000); continue;
-      }
-      throw new Error((j.error && j.error.message) || `Gemini error ${r.status}`);
-    }
-    const text = (((j.candidates || [])[0] || {}).content || { parts: [] }).parts.map((p) => p.text || '').join('');
-    let parsed = {}; try { parsed = JSON.parse(text); } catch (e) { throw new Error('Gemini returned unreadable output'); }
-    out.push(...(parsed.values || [])); applyValues(parsed.values || []);
-  }
-  return out;
 }
 
 function snapToList(raw, list) {
@@ -579,9 +550,10 @@ function applyValues(values) {
 }
 
 async function readHandwritingAI(items, prog) {
+  S.readerUsed = settings.reader === 'gemini' ? 'Gemini' : 'Claude';
   const sheets = await buildSheets(items);
   S.sheetCount = (S.sheetCount || 0) + sheets.length;
-  if (settings.reader === 'gemini') await readWithGemini(sheets, prog); else await readWithClaude(sheets, prog);
+  await readWithHelper(settings.reader, sheets, prog);
   for (const it of items) if (it.value === null) { it.value = ''; it.flag = true; it.missed = true; }
 }
 
@@ -600,7 +572,7 @@ function renderResults() {
   if (S.busy || !S.surveys.some((s) => !s.blank)) { $('preview').innerHTML = ''; return; }
   const { resp, dev } = buildRows();
   const flagged = Object.values(S.items).filter((it) => itemValue(it).bad).length;
-  $('summary').innerHTML = `<b>${resp.length}</b> survey(s), <b>${dev.length}</b> device rows. ` +
+  $('summary').innerHTML = `<b>${resp.length}</b> survey(s), <b>${dev.length}</b> device rows. ` + (S.readerUsed ? `Handwriting read by <b>${esc(S.readerUsed)}</b>. ` : '') +
     (flagged ? `${flagged} handwritten value(s) worth a quick check (below).` : 'All handwriting read.');
   $('checkCount').textContent = flagged ? `${flagged} to check` : 'all good';
   $('checkCount').className = 'badge' + (flagged ? '' : ' ok');
@@ -646,10 +618,11 @@ async function processAll() {
   const prog = (t, frac) => { $('progress').textContent = t; if (frac !== undefined) $('barFill').style.width = `${Math.round(frac * 100)}%`; };
   S.progAI = (t, frac) => prog(t, frac === undefined ? undefined : 0.5 + frac * 0.5);
   // check the chosen reader before spending time on the PDFs
-  if (settings.reader === 'claude') {
-    const h = await helperHealth();
-    if (!h.ok) { prog('Claude helper is not running. Click Copy above, paste it in Terminal, press Enter, then click Process again.'); S.busy = false; updateButtons(); return; }
-  } else if (settings.reader === 'gemini' && !settings.geminiKey) { prog('Paste your Gemini API key first.'); S.busy = false; updateButtons(); return; }
+  if (settings.reader !== 'offline') {
+    const h = await helperHealth(), name = settings.reader === 'claude' ? 'Claude Code' : 'Gemini CLI';
+    if (!h.ok) { prog('The AI helper is not running. Click Copy above, paste it in Terminal, press Enter, then click Process again.'); S.busy = false; updateButtons(); return; }
+    if (!h.engines || !h.engines[settings.reader]) { prog(`The helper is running but ${name} was not found on this computer. Install it and log in once (see the README), then try again.`); S.busy = false; updateButtons(); return; }
+  }
   const modelReady = settings.reader === 'offline' ? loadOcr((done, total) => { S.modelPct = Math.round((done / total) * 100); }).catch((e) => { S.modelErr = e; }) : null;
   const todo = S.files.filter((f) => !f.done);
   let i = 0;
@@ -668,6 +641,7 @@ async function processAll() {
       S.busy = false; renderAll(); window.__done = true; return;
     }
   } else if (items.length) {
+    S.readerUsed = 'Offline model (less accurate)';
     const wait = setInterval(() => { if (!OCR.pipe) prog(`Downloading handwriting model (first time only, ~130 MB)… ${S.modelPct || 0}%`); }, 300);
     await modelReady; clearInterval(wait);
     if (S.modelErr || !OCR.pipe) {
@@ -701,15 +675,17 @@ function stamp() { return new Date().toISOString().slice(0, 16).replace(/[:T]/g,
 function flash(btn, t) { const o = btn.textContent; btn.textContent = t; setTimeout(() => (btn.textContent = o), 1500); }
 function renderSettings() {
   document.querySelectorAll('input[name=reader]').forEach((r) => (r.checked = r.value === settings.reader));
-  document.querySelectorAll('.sub-opt').forEach((d) => (d.hidden = d.dataset.for !== settings.reader));
-  $('helperCmd').value = settings.helperCmd; $('geminiKey').value = settings.geminiKey; $('listBarangays').value = settings.barangays; $('listSurveyors').value = settings.surveyors;
-  if (settings.reader === 'claude') checkHelper();
+  $('helperBox').hidden = settings.reader === 'offline';
+  $('helperCmd').value = settings.helperCmd; $('listBarangays').value = settings.barangays; $('listSurveyors').value = settings.surveyors;
+  if (settings.reader !== 'offline') checkHelper();
 }
 async function checkHelper() {
   const el = $('helperStatus'); el.textContent = 'checking…'; el.className = 'pill';
-  const h = await helperHealth();
-  el.textContent = h.ok ? `Helper running · Claude Code ${String(h.claude || '').split(' ')[0]}` : 'Helper not running';
-  el.className = 'pill ' + (h.ok ? 'ok' : 'err');
+  const h = await helperHealth(), name = settings.reader === 'claude' ? 'Claude Code' : 'Gemini CLI';
+  if (!h.ok) { el.textContent = 'Helper not running'; el.className = 'pill err'; return; }
+  const v = h.engines && h.engines[settings.reader];
+  el.textContent = v ? `Helper running · ${name} ${String(v).split(' ')[0]}` : `Helper running · ${name} not found`;
+  el.className = 'pill ' + (v ? 'ok' : 'err');
 }
 async function retryRemaining() {
   const items = Object.values(S.items).filter((it) => it.value === null);
@@ -722,11 +698,11 @@ async function retryRemaining() {
 }
 function wire() {
   document.querySelectorAll('input[name=reader]').forEach((r) => r.addEventListener('change', () => { settings.reader = r.value; saveSettings(); renderSettings(); }));
-  $('geminiKey').addEventListener('change', (e) => { settings.geminiKey = e.target.value.trim(); delete settings.geminiModel; saveSettings(); });
   $('listBarangays').addEventListener('change', (e) => { settings.barangays = e.target.value; saveSettings(); });
   $('listSurveyors').addEventListener('change', (e) => { settings.surveyors = e.target.value; saveSettings(); });
   $('btnHelper').addEventListener('click', checkHelper);
-  $('helperCmd').addEventListener('change', (e) => { settings.helperCmd = e.target.value; saveSettings(); });
+  $('helperCmd').addEventListener('change', (e) => { settings.helperCmd = e.target.value.trim() || defaultHelperCmd(); saveSettings(); renderSettings(); });
+  $('btnResetCmd').addEventListener('click', () => { settings.helperCmd = defaultHelperCmd(); saveSettings(); renderSettings(); });
   $('btnCopyCmd').addEventListener('click', async () => {
     try { await navigator.clipboard.writeText($('helperCmd').value); } catch (e) { $('helperCmd').select(); document.execCommand('copy'); }
     flash($('btnCopyCmd'), 'Copied ✓'); setTimeout(checkHelper, 4000);

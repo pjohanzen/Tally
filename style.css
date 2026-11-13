@@ -56,7 +56,7 @@ summary{cursor:pointer;font-weight:600}
 .reader{margin:14px 0 4px;padding:12px 14px;border:1px solid var(--line);border-radius:8px;background:#fbfcfd}
 .rhead{font-weight:600;margin-bottom:6px}
 .opt{display:block;margin:6px 0}
-.sub-opt{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:2px 0 8px 24px}
+.sub-opt{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:10px 0 6px 0}
 .sub-opt input[type=password]{width:320px;padding:6px 8px;border:1px solid var(--line);border-radius:6px;font:inherit}
 .sub-opt[hidden]{display:none}
 code{background:#eef1f6;padding:1px 6px;border-radius:4px;font-size:13px}

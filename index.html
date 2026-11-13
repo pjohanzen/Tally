@@ -4,13 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>E-WACS Survey Encoder</title>
-<link rel="stylesheet" href="style.css?v=2026.11.13-3">
+<link rel="stylesheet" href="style.css?v=2026.11.13-4">
 </head>
 <body>
 <header>
   <h1>E-WACS Survey Encoder</h1>
   <p class="sub">Upload scanned survey PDFs → get a CSV / Excel file. Everything runs in this browser; your PDFs are never uploaded.</p>
-  <div id="libstatus" class="pill">Loading tools…</div> <span class="muted ver">version 2026.11.13-3</span>
+  <div id="libstatus" class="pill">Loading tools…</div> <span class="muted ver">version 2026.11.13-4</span>
 </header>
 
 <main>
@@ -22,22 +22,17 @@
     </div>
     <div class="reader">
       <div class="rhead">Read handwriting with</div>
-      <label class="opt"><input type="radio" name="reader" value="claude"> <b>Claude</b> <span class="muted">uses your Claude subscription through Claude Code on this computer</span></label>
-      <div class="sub-opt" data-for="claude">
+      <label class="opt"><input type="radio" name="reader" value="claude"> <b>Claude</b> <span class="muted">your Claude Pro/Max subscription, through Claude Code</span></label>
+      <label class="opt"><input type="radio" name="reader" value="gemini"> <b>Gemini</b> <span class="muted">your Google AI Pro/Ultra subscription, through Gemini CLI</span></label>
+      <label class="opt"><input type="radio" name="reader" value="offline"> <b>Offline</b> <span class="muted">no AI, nothing leaves the computer, much less accurate</span></label>
+      <div id="helperBox" class="sub-opt">
         <span id="helperStatus" class="pill">checking…</span>
         <button id="btnHelper" class="btn small">Check again</button>
         <div class="cmd">
-          <span class="muted">Before processing, paste this in Terminal and leave the window open:</span>
-          <div class="cmdrow"><input id="helperCmd" spellcheck="false"><button id="btnCopyCmd" class="btn small primary">Copy</button></div>
+          <span class="muted">Before processing, paste this in Terminal (Mac) or PowerShell (Windows) and leave the window open:</span>
+          <div class="cmdrow"><input id="helperCmd" spellcheck="false"><button id="btnCopyCmd" class="btn small primary">Copy</button><button id="btnResetCmd" class="btn small" title="Restore the default command">Reset</button></div>
         </div>
       </div>
-      <label class="opt"><input type="radio" name="reader" value="gemini"> <b>Gemini</b> <span class="muted">free API key from Google AI Studio</span></label>
-      <div class="sub-opt" data-for="gemini">
-        <input id="geminiKey" type="password" placeholder="Paste Gemini API key" autocomplete="off">
-        <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener" class="muted">get a free key</a>
-        <span class="muted">Saved only in this browser.</span>
-      </div>
-      <label class="opt"><input type="radio" name="reader" value="offline"> <b>Offline</b> <span class="muted">no AI, nothing leaves the computer, much less accurate</span></label>
       <details class="names">
         <summary class="muted">Known names (optional, improves spelling)</summary>
         <div class="two">
@@ -81,6 +76,6 @@
 <script src="vendor/pdf.min.js"></script>
 <script src="vendor/xlsx.full.min.js"></script>
 <script src="vendor/opencv.js" async></script>
-<script src="app.js?v=2026.11.13-3"></script>
+<script src="app.js?v=2026.11.13-4"></script>
 </body>
 </html>
