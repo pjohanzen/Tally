@@ -9,15 +9,15 @@
 <body>
 <header>
   <h1>E-WACS Survey Encoder</h1>
-  <p class="sub">Scanned survey PDFs → Excel/CSV. Checkboxes are read on your computer; only the handwriting goes to Claude or Gemini as small sheets. Your PDFs never leave this browser.</p>
+  <p class="sub">Upload scanned survey PDFs → get a CSV / Excel file. Everything runs in this browser; your PDFs are never uploaded.</p>
   <div id="libstatus" class="pill">Loading tools…</div>
 </header>
 
 <main>
-  <section id="step1">
-    <h2><span class="num">1</span> Add scanned PDFs</h2>
+  <section>
+    <h2><span class="num">1</span> Upload PDFs</h2>
     <div id="drop" class="drop">
-      <p>Drop PDF files here, or</p>
+      <p>Drop scanned PDF files here, or</p>
       <label class="btn">Choose PDFs<input id="fileInput" type="file" accept="application/pdf" multiple hidden></label>
     </div>
     <div class="row">
@@ -28,46 +28,21 @@
     <ul id="fileList" class="filelist"></ul>
   </section>
 
-  <section id="step2">
-    <h2><span class="num">2</span> Read the handwriting with Claude or Gemini</h2>
-    <ol class="howto">
-      <li>Click <b>Copy prompt</b> once and paste it into a new Claude or Gemini chat.</li>
-      <li>Attach the sheets to that chat, up to 10 per message (<b>Download all unread sheets</b>, then drag them in), or copy one at a time with <b>Copy image</b>.</li>
-      <li>Copy the AI's reply, paste it in the box below, click <b>Apply reply</b>. You can paste several replies at once.</li>
-    </ol>
+  <section>
+    <h2><span class="num">2</span> Download</h2>
+    <p id="summary" class="muted">Results appear here after processing.</p>
     <div class="row">
-      <button id="btnPrompt" class="btn">Copy prompt</button>
-      <button id="btnAllSheets" class="btn">Download all unread sheets</button>
-      <span id="aiStatus" class="muted"></span>
+      <button id="btnCsvR" class="btn primary" disabled>Download CSV</button>
+      <button id="btnXlsx" class="btn" disabled>Download Excel</button>
+      <button id="btnCsvD" class="btn" disabled>Devices CSV (long format)</button>
     </div>
-    <div id="sheets" class="sheets"></div>
-    <textarea id="reply" placeholder="Paste the AI reply here (lines like 12n|3)"></textarea>
-    <div class="row">
-      <button id="btnApply" class="btn primary">Apply reply</button>
-      <span id="applyMsg" class="muted"></span>
-    </div>
-  </section>
-
-  <section id="step3">
-    <h2><span class="num">3</span> Review</h2>
-    <p class="muted">Items the tool or the AI wasn't sure about. Fix the value and it saves automatically.</p>
-    <div id="review"></div>
-  </section>
-
-  <section id="step4">
-    <h2><span class="num">4</span> Export</h2>
-    <div class="row">
-      <button id="btnXlsx" class="btn primary">Download Excel</button>
-      <button id="btnCsvR" class="btn">Respondents CSV</button>
-      <button id="btnCsvD" class="btn">Devices CSV</button>
-    </div>
-    <p class="muted">Upload the CSV to Claude or Gemini for analysis. It's plain text, so it uses very little.</p>
-    <div class="row">
-      <button id="btnSave" class="btn">Save session</button>
-      <label class="btn">Load session<input id="sessionInput" type="file" accept=".json,application/json" hidden></label>
-      <button id="btnReset" class="btn danger">Clear all</button>
-    </div>
-    <p class="muted">Save the session if you need to stop halfway; load it later to continue where you left off.</p>
+    <div id="preview" class="preview"></div>
+    <details id="checkBox">
+      <summary>Check handwritten values <span id="checkCount" class="badge"></span></summary>
+      <p class="muted">Handwriting is read by a model running on this computer. Values it wasn't sure about are listed here. Correct anything wrong and the downloads use your corrections. This step is optional.</p>
+      <div class="row"><label class="muted"><input type="checkbox" id="showAll"> Show all handwritten values</label></div>
+      <div id="review"></div>
+    </details>
   </section>
 
   <section id="debug" hidden>

@@ -1,24 +1,20 @@
 # E-WACS Survey Encoder
 
-Turns scanned, handwritten E-WACS household survey PDFs into an Excel/CSV file, while sending as little as possible to Claude or Gemini.
+Upload scanned, handwritten E-WACS survey PDFs and get a CSV / Excel file back. No AI chat and no API keys; everything runs in the browser, and the PDFs are never uploaded anywhere.
 
-- **Checkboxes** are read on your computer by the page itself. No AI is used for them.
-- **Handwriting** (names, dates, barangay, device counts, storage locations) is cut out and packed into small "sheets". You paste those into Claude or Gemini, which reads only the handwriting.
-- **Your PDFs never leave the browser.** Nothing is uploaded anywhere, GitHub included.
+1. Open the tool link and drop in the PDFs (one or many; a PDF can hold one or several surveys).
+2. Click **Process PDFs**.
+3. Click **Download CSV** (or Excel).
 
-One survey becomes roughly a quarter of one sheet (about 400–500 tokens), instead of 5 full page images (about 12,000+ tokens).
+Optional: open **Check handwritten values** to fix anything the reader wasn't sure about. The downloads use your corrections.
 
-## How to use (5 steps)
+How it reads the forms:
+- **Checkboxes:** ink is measured in the parts of each box that are empty on a blank form.
+- **Handwriting** (names, dates, counts, storage places): read by a small handwriting-recognition model (TrOCR) running on your computer. The model (~65 MB) downloads from Hugging Face the first time and is cached after that.
+- **Counts:** cleaned to whole numbers. A dash means 0.
+- **Storage places:** matched to House / Bodega / Cabinet / Garage / Outdoors when close.
 
-1. Open the tool link (GitHub Pages, see below) in Chrome or Edge.
-2. **Step 1:** drop in the scanned PDFs (one or many; a PDF can hold one or several surveys) and click **Process PDFs**. It takes about 3 seconds per survey; you can switch tabs while it runs.
-3. **Step 2:** click **Copy prompt** and paste it into a new Claude or Gemini chat. Then attach the sheet images, up to 10 per message (**Download all unread sheets**, then drag them in).
-4. Copy each AI reply into the box and click **Apply reply**. Lines look like `12n|3`.
-5. **Step 3:** fix anything listed under Review. **Step 4:** click **Download Excel** (or the CSVs).
-
-For analysis, upload `ewacs-respondents-….csv` (and `ewacs-devices-….csv`) to Claude or Gemini. It's plain text, so it uses very little.
-
-If you need to stop halfway, click **Save session**. Later, **Load session** continues where you left off. Large batches: process 50–100 PDFs at a time.
+Upload the downloaded CSV to Claude or Gemini for analysis. It's plain text, so it uses very little.
 
 ## What the Excel contains
 
@@ -28,7 +24,7 @@ If you need to stop halfway, click **Save session**. Later, **Load session** con
 | Devices | survey × device that has any value | Long format: `active_in_use`, `broken_in_storage`, `storage_location` |
 | Review | issue | Missing pages, more than one tick on a single-answer question, unreadable values |
 
-A dash written in a count cell becomes `0`. An empty cell stays empty. `PENDING` means the AI hasn't read that box yet.
+A dash written in a count cell becomes `0`. An empty cell stays empty. 
 
 ## Host it on GitHub Pages (free)
 
@@ -47,12 +43,9 @@ To run it locally instead: `python3 -m http.server` in this folder, then open ht
 
 ## How it works
 
-1. **Render and identify:** pdf.js renders each page. OpenCV.js (ORB features + RANSAC homography) works out which of the 5 form pages it is and lines it up with the template, which handles skew, shifts and different scan resolutions.
-2. **Local alignment:** each field is fine-aligned against nearby printed text, because paper often curls in the scanner.
-3. **Checkboxes:** ink is counted in the areas that are always empty on a blank form: inside the `[ ]`, the gap after `]`, and the strip above the option text. Clear ticks are recorded directly. Borderline ones are sent to the AI sheet as `…c` items.
-4. **Handwriting:** the blank form is subtracted from each field. If anything is left, it is cropped tightly and added to a sheet.
+pdf.js renders each page. OpenCV.js (ORB features + homography) identifies which of the 5 form pages it is and lines it up with the template. Each field is then fine-aligned, checkboxes are scored by ink, and the blank form is subtracted from each handwriting field. Any field with leftover ink is cropped and read by TrOCR through transformers.js (WebGPU when available, otherwise WebAssembly).
 
-Debug view: add `?debug=1` to the URL to see each aligned page with the field boxes drawn (green = ticked, orange = unsure, blue = handwriting found).
+Debug view: add `?debug=1` to the URL to see the aligned pages with the field boxes drawn.
 
 ## Limits / next steps
 
@@ -60,4 +53,4 @@ Debug view: add `?debug=1` to the URL to see each aligned page with the field bo
 - Tested on the sample and on a rotated, rescaled, blurred 150 dpi copy: every checkbox was either correct or sent to the AI as unsure. Spot-check the first real batch against the paper forms.
 - A different questionnaire needs its own template JSON plus reference page images.
 
-Third-party libraries (in `vendor/`): pdf.js (Apache-2.0), SheetJS Community Edition (Apache-2.0), OpenCV.js (Apache-2.0).
+Third-party libraries (in `vendor/`): pdf.js, SheetJS Community Edition, OpenCV.js, transformers.js + ONNX Runtime Web (all Apache-2.0 / MIT). Model: microsoft/trocr-small-handwritten (ONNX export by Xenova).

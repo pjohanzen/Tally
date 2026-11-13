@@ -17,8 +17,8 @@ const CFG = {
   chkOn: 25,                // extra ink over a blank box -> ticked
   chkUnsure: 12,            // between unsure and on -> ask the AI
   blankInk: { count: 10, text: 15 }, // handwriting pixels below this = blank (blank cells measure ~0)
-  cropScale: 0.6,           // crops on the sheet (200 dpi * 0.6 = 120 dpi)
-  sheetW: 1150, sheetMaxH: 1150, labelW: 78,
+  cropScale: 0.8,           // handwriting crops (200 dpi * 0.8 = 160 dpi)
+  ocrModel: 'Xenova/trocr-small-handwritten',
 };
 
 const S = { tpl: null, refs: [], files: [], surveys: [], items: {}, nextId: 1, ready: false, debug: /[?&]debug=1/.test(location.search) };
@@ -200,7 +200,7 @@ function analysePage(canvas, expected) {
     const delta = (a.inner - bIn) + (a.above - bAb);
     const state = delta >= CFG.chkOn ? 'on' : delta >= CFG.chkUnsure ? 'unsure' : 'off';
     const c = { qid: a.q.id, value: a.o.value, delta, state };
-    if (state === 'unsure') c.crop = cropCanvas(warped, shift(a.o.line, a.off), false);
+    if (state === 'unsure') { c.crop = cropCanvas(warped, shift(a.o.line, a.off), false); c.guess = delta >= 18; }
     out.checks.push(c);
     if (S.debug) (S.debugChecks = S.debugChecks || []).push([ref.n, a.q.id, a.o.value, a.inner, a.above, delta, Math.round(a.off.dx), Math.round(a.off.dy), +a.off.score.toFixed(2)]);
     if (dbg) dbg.push({ box: shift(a.o.box, a.off), color: state === 'on' ? '#0a0' : state === 'unsure' ? '#f90' : '#c00' });
@@ -217,15 +217,16 @@ function analysePage(canvas, expected) {
     const hw = new cv.Mat(); cv.subtract(sRoi, refDil, hw);
     const clean = new cv.Mat(); const k2 = cv.Mat.ones(2, 2, cv.CV_8U); cv.morphologyEx(hw, clean, cv.MORPH_OPEN, k2);
     const ink = cv.countNonZero(clean);
-    let crop = null;
+    let crop = null, dash = false;
     const blank = ink < (CFG.blankInk[f.kind] || CFG.blankInk.text);
     if (!blank) {
       const bb = inkBounds(clean);
+      dash = f.kind === 'count' && bb.height <= 20 && bb.width >= 2 * bb.height;
       const padX = 14, padY = 12;
       crop = cropCanvas(warped, [r.x + bb.x - padX, r.y + bb.y - padY, bb.width + 2 * padX, bb.height + 2 * padY], true);
     }
     [sRoi, refRoi, refDil, k, hw, clean, k2].forEach((m) => m.delete());
-    out.fields.push({ id: f.id, kind: f.kind, blank, ink, crop });
+    out.fields.push({ id: f.id, kind: f.kind, blank, ink, crop, dash });
     if (S.debug) (S.debugFields = S.debugFields || []).push([ref.n, f.id, ink]);
     if (dbg) dbg.push({ box: shift(f.box, off), color: blank ? '#88a' : '#00f' });
   }
@@ -270,10 +271,10 @@ function absorbPage(survey, res) {
   for (const c of res.checks) {
     const a = survey.answers[c.qid] || (survey.answers[c.qid] = { on: [], unsure: {} });
     if (c.state === 'on') a.on.push(c.value);
-    else if (c.state === 'unsure') a.unsure[c.value] = newItem(survey, c.qid, 'check', c.crop, { option: c.value });
+    else if (c.state === 'unsure') a.unsure[c.value] = newItem(survey, c.qid, 'check', c.crop, { option: c.value, guess: c.guess });
   }
   for (const f of res.fields) {
-    survey.fields[f.id] = f.blank ? { blank: true } : { item: newItem(survey, f.id, f.kind, f.crop) };
+    survey.fields[f.id] = f.blank ? { blank: true } : { item: newItem(survey, f.id, f.kind, f.crop, { dash: f.dash }) };
   }
 }
 function finishSurvey(s) {
@@ -288,16 +289,11 @@ function finishSurvey(s) {
 
 /* ---------------- values ---------------- */
 function itemValue(it) {
-  if (!it || it.value === null || it.value === undefined) return { v: 'PENDING', bad: false, pending: true };
-  let v = String(it.value).trim();
-  if (it.kind === 'count') {
-    if (/^[-–—_~=]+$/.test(v) || /^(none|wala|zero)$/i.test(v)) v = '0';
-    if (v === '') return { v: '', bad: false };
-    if (/^\d+$/.test(v)) return { v: Number(v), bad: false };
-    return { v, bad: true, why: v === '?' ? 'AI could not read it' : 'not a whole number' };
-  }
-  if (it.kind === 'check') return { v: /^(x|✓|✔|yes|checked|ticked|marked|1)$/i.test(v), bad: v === '?', why: 'AI unsure if ticked' };
-  return { v, bad: v === '?' || /\?$/.test(v), why: 'AI could not read it' };
+  if (!it || it.value === null || it.value === undefined) return { v: '', bad: false, pending: true };
+  const v = String(it.value).trim();
+  if (it.kind === 'count') return /^\d+$/.test(v) ? { v: Number(v), bad: !!it.flag, why: 'check the number' } : { v, bad: true, why: 'not a number' };
+  if (it.kind === 'check') return { v: v === 'X', bad: !!it.flag, why: 'faint mark: ticked or not?' };
+  return { v, bad: !!it.flag, why: v ? 'check spelling' : 'could not read' };
 }
 function checksFor(s, q) {
   const a = s.answers[q.id] || { on: [], unsure: {} };
@@ -328,7 +324,7 @@ function buildRows() {
     for (const q of T.questions) {
       const c = checksFor(s, q);
       if (q.kind === 'single') {
-        row[q.id] = c.pending && !c.on.length ? 'PENDING' : c.on.join('; ');
+        row[q.id] = c.on.join('; ');
         if (c.on.length > 1) notes.push(`${q.label}: more than one box ticked`);
       } else {
         row[q.id] = c.on.join('; ');
@@ -352,66 +348,86 @@ function buildRows() {
   return { resp, dev, review };
 }
 
-/* ---------------- sheets for the AI ---------------- */
-function pendingItems() { return Object.values(S.items).filter((i) => i.value === null); }
-
-async function buildSheets() {
-  const items = Object.values(S.items).sort((a, b) => parseInt(a.id) - parseInt(b.id));
-  const sheets = []; let cur = null, x = 0, y = 0, rowH = 0;
-  const pad = 8, gap = 6;
-  const newSheet = () => { cur = { items: [], places: [] }; sheets.push(cur); x = 0; y = 0; rowH = 0; };
-  newSheet();
-  for (const it of items) {
-    const img = await loadImage(it.crop); it._img = img;
-    const maxW = CFG.sheetW - CFG.labelW - 2 * pad;
-    const s = Math.min(1, maxW / img.width);
-    const w = CFG.labelW + Math.round(img.width * s) + 2 * pad, h = Math.max(40, Math.round(img.height * s) + 2 * pad);
-    if (x + w > CFG.sheetW) { x = 0; y += rowH + gap; rowH = 0; }
-    if (y + h > CFG.sheetMaxH && cur.items.length) { newSheet(); }
-    cur.items.push(it.id); cur.places.push({ it, x, y, w, h, s });
-    x += w + gap; rowH = Math.max(rowH, h);
-  }
-  S.sheets = sheets.filter((s) => s.items.length).map((sh, i) => {
-    const H = Math.max(...sh.places.map((p) => p.y + p.h)) + 4;
-    const c = document.createElement('canvas'); c.width = CFG.sheetW; c.height = H;
-    const ctx = c.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height);
-    for (const p of sh.places) {
-      ctx.strokeStyle = '#999'; ctx.lineWidth = 1; ctx.strokeRect(p.x + 0.5, p.y + 0.5, p.w - 1, p.h - 1);
-      ctx.fillStyle = '#ffeb3b'; ctx.fillRect(p.x + 1, p.y + 1, CFG.labelW - 4, p.h - 2);
-      ctx.fillStyle = '#000'; ctx.font = 'bold 22px Arial, sans-serif'; ctx.textBaseline = 'middle';
-      ctx.fillText(p.it.id, p.x + 6, p.y + p.h / 2);
-      ctx.drawImage(p.it._img, p.x + CFG.labelW, p.y + pad, p.it._img.width * p.s, p.it._img.height * p.s);
+/* ---------------- on-device handwriting reading ---------------- */
+const OCR = { pipe: null, loading: null, device: '' };
+async function loadOcr(onProgress) {
+  if (OCR.pipe) return OCR.pipe;
+  if (OCR.loading) return OCR.loading;
+  OCR.loading = (async () => {
+    const T = await import('./vendor/transformers.min.js');
+    T.env.allowLocalModels = false;
+    T.env.backends.onnx.wasm.wasmPaths = new URL('vendor/', location.href).href;
+    let device = 'wasm', dtype = 'q8';
+    try {
+      const ad = navigator.gpu && (await navigator.gpu.requestAdapter());
+      if (ad && ad.features.has('shader-f16') && !/[?&]wasm=1/.test(location.search)) { device = 'webgpu'; dtype = 'fp16'; }
+    } catch (e) { /* no WebGPU */ }
+    const files = {};
+    const progress_callback = (p) => {
+      if (p.status === 'progress' && p.total) { files[p.file] = [p.loaded, p.total]; const v = Object.values(files); onProgress(v.reduce((a, x) => a + x[0], 0), v.reduce((a, x) => a + x[1], 0)); }
+    };
+    try {
+      OCR.pipe = await T.pipeline('image-to-text', CFG.ocrModel, { device, dtype, progress_callback });
+    } catch (e) {
+      if (device === 'wasm') throw e;
+      console.warn('WebGPU failed, falling back to WASM', e); device = 'wasm';
+      OCR.pipe = await T.pipeline('image-to-text', CFG.ocrModel, { device, dtype: 'q8', progress_callback });
     }
-    return { n: i + 1, ids: sh.items, url: c.toDataURL('image/png'), w: c.width, h: H };
-  });
-  for (const it of items) delete it._img;
+    OCR.device = device;
+    return OCR.pipe;
+  })();
+  return OCR.loading;
 }
 
-const PROMPT = `I'll send images of handwritten survey answers. Each box has a yellow ID label on its left (like 12n, 13t, 14c).
-For every image, reply ONLY with one line per ID, in this exact format, nothing else:
-ID|value
+// TrOCR expects a line of text; give tiny crops a wider white canvas so they are not stretched
+async function ocrInput(it) {
+  const img = await loadImage(it.crop);
+  const h = Math.max(img.height, 48), w = Math.max(img.width, Math.round(h * 2.2)) + 20;
+  const c = document.createElement('canvas'); c.width = w; c.height = h + 16;
+  const ctx = c.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height);
+  ctx.drawImage(img, Math.round((w - img.width) / 2), Math.round((c.height - img.height) / 2));
+  return c.toDataURL('image/png');
+}
 
-Rules:
-- IDs ending in "n" are counts: write the number only. A dash or a single line means 0.
-- IDs ending in "t" are words or dates: copy exactly what is written (Filipino/Hiligaynon place names are normal). Dates as written.
-- IDs ending in "c" are checkboxes: write X if the box is ticked or marked, otherwise write -
-- If a box has no handwriting at all, write nothing after the |
-- If you really cannot read it, write ?
-- Do not skip any ID and do not add explanations.`;
+const DIGIT_MAP = { l: '1', I: '1', i: '1', '|': '1', '!': '1', '/': '1', '\\': '1', ']': '1', '[': '1', ')': '1', '(': '1', t: '1', T: '1', J: '1', j: '1',
+  O: '0', o: '0', D: '0', Q: '0', S: '5', s: '5', Z: '2', z: '2', B: '8', g: '9', q: '9', G: '6', b: '6', A: '4', '?': '7' };
+function cleanCount(raw) {
+  let t = String(raw || '').trim();
+  if (!t || /^[-–—_~=.,'"`]+$/.test(t)) return { v: '0', flag: false };
+  let d = '';
+  for (const ch of t.replace(/\s+/g, '')) d += /\d/.test(ch) ? ch : (DIGIT_MAP[ch] || '');
+  if (!d) return { v: t, flag: true };
+  d = d.replace(/^0+(?=\d)/, '');
+  return { v: d, flag: d.length > 2 || t.replace(/[\s.,]/g, '').length > d.length + 1 };
+}
+const PLACES = ['House', 'Bahay', 'Cabinet', 'Bodega', 'Garage', 'Outdoors', 'Outside', 'Kitchen', 'Storage room', 'Bodega/Storage'];
+function lev(a, b) { const m = a.length, n = b.length, d = Array.from({ length: m + 1 }, (_, i) => [i, ...Array(n).fill(0)]); for (let j = 1; j <= n; j++) d[0][j] = j;
+  for (let i = 1; i <= m; i++) for (let j = 1; j <= n; j++) d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)); return d[m][n]; }
+function snapPlace(raw) {
+  const t = String(raw || '').trim().replace(/[.,;:]+$/, ''); if (!t) return { v: '', flag: true };
+  let best = null, bd = 99;
+  for (const p of PLACES) { const dd = lev(t.toLowerCase(), p.toLowerCase()); if (dd < bd) { bd = dd; best = p; } }
+  if (best && bd <= Math.max(1, Math.floor(best.length * 0.4))) return { v: best, flag: false };
+  return { v: t, flag: true };
+}
 
-function applyReply(text) {
-  let ok = 0, unknown = 0;
-  for (let line of text.split(/\r?\n/)) {
-    line = line.replace(/[`*]/g, '').replace(/^\s*[-•]\s*/, '').replace(/^\|/, '').trim();
-    const m = line.match(/^(\d+[ntc])\s*[|:\t=]\s*(.*?)\s*\|?\s*$/i);
-    if (!m) continue;
-    const it = S.items[m[1].toLowerCase()];
-    if (!it) { unknown++; continue; }
-    let v = m[2];
-    if (it.kind === 'check') v = /^(x|✓|✔|yes|checked|ticked|marked)$/i.test(v) ? 'X' : v === '?' ? '?' : '-';
-    it.value = v; ok++;
+async function readHandwriting(items, onStep) {
+  const pipe = await loadOcr(() => {});
+  let i = 0;
+  for (const it of items) {
+    onStep(++i, items.length);
+    if (it.value !== null) continue;
+    if (it.kind === 'check') { it.value = it.guess ? 'X' : '-'; it.flag = true; continue; }
+    if (it.kind === 'count' && it.dash) { it.value = '0'; it.raw = '—'; continue; }
+    let raw = '';
+    try { const out = await pipe(await ocrInput(it), { max_new_tokens: it.kind === 'count' ? 6 : 24 }); raw = (out[0] && out[0].generated_text) || ''; }
+    catch (e) { console.error(e); }
+    it.raw = raw;
+    const f = S.tpl.textFields.find((x) => x.id === it.field) || {};
+    const r = it.kind === 'count' ? cleanCount(raw) : f.column === 'where' ? snapPlace(raw) : { v: raw.trim(), flag: !raw.trim() };
+    it.value = r.v; it.flag = r.flag;
+    if (i % 4 === 0) await tick();
   }
-  return { ok, unknown };
 }
 
 /* ---------------- UI ---------------- */
@@ -420,46 +436,49 @@ function renderFiles() {
 }
 function updateButtons() {
   $('btnProcess').disabled = !S.ready || S.busy || !S.files.some((f) => !f.done);
+  const has = S.surveys.some((s) => !s.blank) && !S.busy;
+  ['btnCsvR', 'btnXlsx', 'btnCsvD'].forEach((id) => ($(id).disabled = !has));
 }
-function renderSheets() {
-  const total = Object.keys(S.items).length, pend = pendingItems().length;
-  $('aiStatus').textContent = total ? `${total - pend} of ${total} handwriting boxes read · ${S.sheets.length} sheet(s)` : 'No sheets yet. Process PDFs first.';
-  $('sheets').innerHTML = (S.sheets || []).map((sh) => {
-    const done = sh.ids.every((id) => S.items[id] && S.items[id].value !== null);
-    return `<div class="sheet ${done ? 'done' : ''}"><img src="${sh.url}" data-n="${sh.n}" alt="Sheet ${sh.n}">
-      <div class="meta"><span class="tag">Sheet ${sh.n}${done ? ' ✓' : ''}</span><span>${sh.ids.length} boxes</span></div>
-      <div class="row" style="margin:4px 0 0"><button class="btn small" data-copy="${sh.n}">Copy image</button><button class="btn small" data-dl="${sh.n}">Download</button></div></div>`;
-  }).join('');
+function renderResults() {
+  if (S.busy || !S.surveys.some((s) => !s.blank)) { $('preview').innerHTML = ''; return; }
+  const { resp, dev } = buildRows();
+  const flagged = Object.values(S.items).filter((it) => itemValue(it).bad).length;
+  $('summary').innerHTML = `<b>${resp.length}</b> survey(s), <b>${dev.length}</b> device rows. ` +
+    (flagged ? `${flagged} handwritten value(s) worth a quick check (below).` : 'All handwriting read.');
+  $('checkCount').textContent = flagged ? `${flagged} to check` : 'all good';
+  $('checkCount').className = 'badge' + (flagged ? '' : ' ok');
+  const cols = Object.keys(resp[0] || {}).filter((c) => !/__\d+$/.test(c));
+  $('preview').innerHTML = `<table><thead><tr>${cols.map((c) => `<th>${esc(c)}</th>`).join('')}</tr></thead><tbody>` +
+    resp.slice(0, 50).map((r) => `<tr>${cols.map((c) => `<td>${esc(r[c])}</td>`).join('')}</tr>`).join('') + '</tbody></table>';
 }
 function renderReview() {
-  const out = [];
-  for (const it of Object.values(S.items)) {
+  const all = $('showAll').checked;
+  const items = Object.values(S.items).filter((it) => it.value !== null && (all || itemValue(it).bad))
+    .sort((a, b) => (itemValue(b).bad - itemValue(a).bad) || (parseInt(a.id) - parseInt(b.id)));
+  $('review').innerHTML = items.map((it) => {
     const r = itemValue(it);
-    if (r.pending || !r.bad) continue;
-    out.push(`<div class="rv"><img src="${it.crop}"><div><b>${esc(fieldLabel(it))}</b><div class="muted">${esc(surveyLabel(it.survey))} · ${it.id}</div><div class="why">${esc(r.why)}</div></div>
-      <input data-item="${it.id}" value="${esc(it.value)}"></div>`);
-  }
-  const { review } = buildRows();
-  for (const r of review.filter((r) => !/AI could not read|not a whole number|AI unsure/.test(r.issue)))
-    out.push(`<div class="rv note"><div class="muted">note</div><div><b>${esc(r.respondent_id)}</b> — ${esc(r.issue)}</div></div>`);
-  $('review').innerHTML = out.join('') || '<p class="muted">Nothing to review yet.</p>';
+    const input = it.kind === 'check'
+      ? `<select data-item="${it.id}"><option value="X"${it.value === 'X' ? ' selected' : ''}>Ticked</option><option value="-"${it.value !== 'X' ? ' selected' : ''}>Not ticked</option></select>`
+      : `<input data-item="${it.id}" value="${esc(it.value)}">`;
+    return `<div class="rv ${r.bad ? 'flag' : ''}"><img src="${it.crop}"><div><b>${esc(fieldLabel(it))}</b><div class="muted">${esc(surveyLabel(it.survey))}</div>${r.bad ? `<div class="why">${esc(r.why)}</div>` : ''}</div>${input}</div>`;
+  }).join('') || '<p class="muted">Nothing to check.</p>';
 }
 function fieldLabel(it) {
   const f = S.tpl.textFields.find((x) => x.id === it.field);
-  if (f) return f.group === 'devices' ? `${f.deviceLabel} — ${f.column === 'name' ? 'device name' : f.column}` : f.label;
+  if (f) return f.group === 'devices' ? `${f.deviceLabel} — ${{ active: 'active / in use', broken: 'broken / in storage', where: 'where stored', name: 'device name' }[f.column]}` : f.label;
   const q = S.tpl.questions.find((x) => x.id === it.field);
-  return q ? `${q.label}: "${it.option}" ticked?` : it.field;
+  return q ? `${q.label}: "${it.option}"` : it.field;
 }
-function surveyLabel(key) { const s = S.surveys.find((x) => x.key === key); return s ? `${s.file} (survey ${s.idx})` : key; }
+function surveyLabel(key) { const s = S.surveys.find((x) => x.key === key); return s ? `${s.file}${s.idx > 1 ? ` (survey ${s.idx})` : ''}` : key; }
 function renderDebug() { if (S.debug) $('debugPages').innerHTML = (S.debugPages || []).map((u) => `<img src="${u}">`).join(''); }
-function renderAll() { renderFiles(); renderSheets(); renderReview(); renderDebug(); updateButtons(); }
+function renderAll() { renderFiles(); renderResults(); renderReview(); renderDebug(); updateButtons(); }
 function esc(s) { return String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 
 function addFiles(list) {
   for (const file of list) {
     if (!/\.pdf$/i.test(file.name)) continue;
     const key = `${file.name}|${file.size}`;
-    if (S.files.some((f) => f.key === key) || S.surveys.some((s) => s.fileKey === key)) continue;
+    if (S.files.some((f) => f.key === key)) continue;
     S.files.push({ key, name: file.name, file });
   }
   renderFiles(); updateButtons();
@@ -467,19 +486,33 @@ function addFiles(list) {
 
 async function processAll() {
   S.busy = true; S.debugPages = S.debugPages || []; updateButtons();
+  const prog = (t, frac) => { $('progress').textContent = t; if (frac !== undefined) $('barFill').style.width = `${Math.round(frac * 100)}%`; };
+  // start downloading the handwriting model in parallel with page analysis
+  const modelReady = loadOcr((done, total) => { S.modelPct = Math.round((done / total) * 100); }).catch((e) => { S.modelErr = e; });
   const todo = S.files.filter((f) => !f.done);
   let i = 0;
   for (const f of todo) {
-    $('progress').textContent = `Processing ${++i} of ${todo.length}: ${f.name}`;
-    $('barFill').style.width = `${((i - 1) / todo.length) * 100}%`;
+    prog(`Reading PDF ${++i} of ${todo.length}: ${f.name}`, (i - 1) / todo.length * 0.5);
     try { await processFile(f); } catch (e) { console.error(e); f.status = 'error: ' + e.message; f.cls = 'err'; f.done = true; }
     renderFiles(); await tick();
   }
-  $('barFill').style.width = '100%';
-  $('progress').textContent = 'Building handwriting sheets…';
-  await buildSheets();
+  const items = Object.values(S.items).filter((it) => it.value === null).sort((a, b) => parseInt(a.id) - parseInt(b.id));
+  if (items.length) {
+    const wait = setInterval(() => { if (!OCR.pipe) prog(`Downloading handwriting model (first time only, ~65 MB)… ${S.modelPct || 0}%`); }, 300);
+    await modelReady; clearInterval(wait);
+    if (S.modelErr || !OCR.pipe) {
+      prog('Could not load the handwriting model: ' + (S.modelErr && S.modelErr.message) + '. Check your internet connection and try again.');
+      S.busy = false; renderAll(); return;
+    }
+    const t0 = performance.now();
+    await readHandwriting(items, (k, n) => {
+      const eta = k > 3 ? Math.round(((performance.now() - t0) / k) * (n - k) / 1000) : null;
+      prog(`Reading handwriting ${k} of ${n}${eta !== null ? ` · about ${eta < 90 ? eta + ' s' : Math.round(eta / 60) + ' min'} left` : ''}`, 0.5 + (k / n) * 0.5);
+    });
+    S.ocrSecs = (performance.now() - t0) / 1000;
+  }
   const n = S.surveys.filter((s) => !s.blank).length;
-  $('progress').textContent = `Done: ${n} survey(s) from ${S.files.length} PDF(s). Next: step 2.`;
+  prog(`Done: ${n} survey(s) from ${S.files.length} PDF(s).`, 1);
   S.busy = false; renderAll();
   window.__done = true;
 }
@@ -503,27 +536,12 @@ function wire() {
   drop.addEventListener('drop', (ev) => addFiles(ev.dataTransfer.files));
   $('fileInput').addEventListener('change', (ev) => { addFiles(ev.target.files); ev.target.value = ''; });
   $('btnProcess').addEventListener('click', processAll);
-  $('btnAllSheets').addEventListener('click', async () => {
-    const todo = S.sheets.filter((sh) => !sh.ids.every((id) => S.items[id] && S.items[id].value !== null));
-    for (const sh of todo) { download(`sheet-${String(sh.n).padStart(3, '0')}.png`, sh.url); await sleep(350); }
+  $('showAll').addEventListener('change', renderReview);
+  $('review').addEventListener('change', (ev) => {
+    const id = ev.target.dataset.item; if (!id || !S.items[id]) return;
+    S.items[id].value = ev.target.value; S.items[id].flag = false;
+    ev.target.style.borderColor = '#1a7f37'; renderResults();
   });
-  $('btnPrompt').addEventListener('click', async () => { await navigator.clipboard.writeText(PROMPT); flash($('btnPrompt'), 'Copied ✓'); });
-  $('sheets').addEventListener('click', async (ev) => {
-    const t = ev.target, n = +(t.dataset.copy || t.dataset.dl || t.dataset.n);
-    const sh = S.sheets.find((s) => s.n === n); if (!sh) return;
-    if (t.dataset.dl) download(`sheet-${String(n).padStart(3, '0')}.png`, sh.url);
-    else if (t.dataset.copy) {
-      try { const blob = await (await fetch(sh.url)).blob(); await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]); flash(t, 'Copied ✓'); }
-      catch (e) { flash(t, 'Use Download'); }
-    } else if (t.tagName === 'IMG') { const d = document.createElement('dialog'); d.innerHTML = `<img src="${sh.url}">`; d.onclick = () => d.remove(); document.body.append(d); d.showModal(); }
-  });
-  $('btnApply').addEventListener('click', () => {
-    const r = applyReply($('reply').value);
-    $('applyMsg').textContent = `${r.ok} value(s) applied` + (r.unknown ? `, ${r.unknown} unknown ID(s) ignored` : '') + `. ${pendingItems().length} still waiting.`;
-    if (r.ok) $('reply').value = '';
-    renderAll();
-  });
-  $('review').addEventListener('change', (ev) => { const id = ev.target.dataset.item; if (id && S.items[id]) { S.items[id].value = ev.target.value; renderSheets(); ev.target.style.borderColor = '#1a7f37'; } });
   $('btnXlsx').addEventListener('click', () => {
     const { resp, dev, review } = buildRows(); const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(resp), 'Respondents');
@@ -533,28 +551,8 @@ function wire() {
   });
   $('btnCsvR').addEventListener('click', () => download(`ewacs-respondents-${stamp()}.csv`, new Blob(['﻿' + toCsv(buildRows().resp)], { type: 'text/csv' })));
   $('btnCsvD').addEventListener('click', () => download(`ewacs-devices-${stamp()}.csv`, new Blob(['﻿' + toCsv(buildRows().dev)], { type: 'text/csv' })));
-  $('btnSave').addEventListener('click', () => {
-    const data = { app: 'ewacs-encoder', v: 1, tpl: S.tpl.id, nextId: S.nextId, surveys: S.surveys, items: S.items,
-      files: S.files.filter((f) => f.done).map(({ key, name, status, cls }) => ({ key, name, status, cls, done: true })) };
-    download(`ewacs-session-${stamp()}.json`, new Blob([JSON.stringify(data)], { type: 'application/json' }));
-  });
-  $('sessionInput').addEventListener('change', async (ev) => {
-    const f = ev.target.files[0]; ev.target.value = ''; if (!f) return;
-    try {
-      const d = JSON.parse(await f.text()); if (d.app !== 'ewacs-encoder') throw new Error('not a session file');
-      S.surveys = d.surveys; S.items = d.items; S.nextId = d.nextId; S.files = d.files || [];
-      await buildSheets(); renderAll(); $('progress').textContent = 'Session loaded.';
-    } catch (e) { alert('Could not load session: ' + e.message); }
-  });
-  $('btnReset').addEventListener('click', () => {
-    if (!confirm('Clear all PDFs, sheets and answers?')) return;
-    S.files = []; S.surveys = []; S.items = {}; S.sheets = []; S.nextId = 1; S.debugPages = [];
-    $('progress').textContent = ''; $('barFill').style.width = '0'; renderAll();
-  });
-  window.addEventListener('beforeunload', (e) => { if (Object.keys(S.items).length) { e.preventDefault(); e.returnValue = ''; } });
+  window.addEventListener('beforeunload', (e) => { if (S.surveys.length) { e.preventDefault(); e.returnValue = ''; } });
 }
-function flash(btn, t) { const o = btn.textContent; btn.textContent = t; setTimeout(() => (btn.textContent = o), 1500); }
 
-S.sheets = [];
 wire();
 boot();

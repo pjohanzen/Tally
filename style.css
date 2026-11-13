@@ -42,3 +42,14 @@ textarea{width:100%;min-height:120px;font:13px/1.4 ui-monospace,Menlo,Consolas,m
 #debugPages img{width:32%;margin:0 1% 10px 0;border:1px solid #ccc}
 dialog{border:none;border-radius:10px;padding:0;max-width:95vw;max-height:95vh}
 dialog img{display:block;max-width:95vw;max-height:95vh}
+details{margin-top:16px;border-top:1px solid var(--line);padding-top:12px}
+summary{cursor:pointer;font-weight:600}
+.badge{display:inline-block;background:#fff4e0;color:var(--warn);border-radius:99px;padding:0 8px;font-size:13px;font-weight:600}
+.badge.ok{background:#e6f4ea;color:var(--ok)}
+.preview{overflow:auto;max-height:340px;border:1px solid var(--line);border-radius:7px;margin-top:8px}
+.preview:empty{display:none}
+.preview table{border-collapse:collapse;font-size:12px;white-space:nowrap}
+.preview th,.preview td{border-bottom:1px solid #eef0f3;padding:4px 8px;text-align:left}
+.preview th{position:sticky;top:0;background:#f6f7f9}
+.rv.flag{background:#fffaf0}
+.rv select{width:100%;padding:5px 8px;border:1px solid var(--line);border-radius:6px;font:inherit}
