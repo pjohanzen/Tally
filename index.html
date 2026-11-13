@@ -4,13 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>E-WACS Survey Encoder</title>
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css?v=2026.11.13-3">
 </head>
 <body>
 <header>
   <h1>E-WACS Survey Encoder</h1>
   <p class="sub">Upload scanned survey PDFs → get a CSV / Excel file. Everything runs in this browser; your PDFs are never uploaded.</p>
-  <div id="libstatus" class="pill">Loading tools…</div>
+  <div id="libstatus" class="pill">Loading tools…</div> <span class="muted ver">version 2026.11.13-3</span>
 </header>
 
 <main>
@@ -25,9 +25,11 @@
       <label class="opt"><input type="radio" name="reader" value="claude"> <b>Claude</b> <span class="muted">uses your Claude subscription through Claude Code on this computer</span></label>
       <div class="sub-opt" data-for="claude">
         <span id="helperStatus" class="pill">checking…</span>
-        <span class="muted">One-time per session: open Terminal in the tool folder and run <code>node claude-helper.mjs</code>, then leave it open.</span>
-        <a href="claude-helper.mjs" download class="muted">download helper</a>
         <button id="btnHelper" class="btn small">Check again</button>
+        <div class="cmd">
+          <span class="muted">Before processing, paste this in Terminal and leave the window open:</span>
+          <div class="cmdrow"><input id="helperCmd" spellcheck="false"><button id="btnCopyCmd" class="btn small primary">Copy</button></div>
+        </div>
       </div>
       <label class="opt"><input type="radio" name="reader" value="gemini"> <b>Gemini</b> <span class="muted">free API key from Google AI Studio</span></label>
       <div class="sub-opt" data-for="gemini">
@@ -64,7 +66,7 @@
     <div id="preview" class="preview"></div>
     <details id="checkBox">
       <summary>Check handwritten values <span id="checkCount" class="badge"></span></summary>
-      <p class="muted">Handwriting is read by a model running on this computer. Values it wasn't sure about are listed here. Correct anything wrong and the downloads use your corrections. This step is optional.</p>
+      <p id="checkInfo" class="muted">Values the reader wasn't sure about, or that failed a check, are listed here next to the handwriting. Correct anything wrong and the downloads use your corrections. This step is optional.</p>
       <div class="row"><label class="muted"><input type="checkbox" id="showAll"> Show all handwritten values</label></div>
       <div id="review"></div>
     </details>
@@ -79,6 +81,6 @@
 <script src="vendor/pdf.min.js"></script>
 <script src="vendor/xlsx.full.min.js"></script>
 <script src="vendor/opencv.js" async></script>
-<script src="app.js"></script>
+<script src="app.js?v=2026.11.13-3"></script>
 </body>
 </html>

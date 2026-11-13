@@ -443,7 +443,7 @@ async function readHandwriting(items, onStep) {
 /* ---------------- AI readers: Claude (via local helper) or Gemini (API key) ---------------- */
 const SETTINGS_KEY = 'ewacs-settings-v1';
 const settings = (() => {
-  const d = { reader: 'claude', geminiKey: '', helperUrl: 'http://127.0.0.1:8787', barangays: '', surveyors: '' };
+  const d = { reader: 'claude', helperCmd: 'cd ~/Documents/stuff/pdf\\ less\\ usage/ewacs-encoder && node claude-helper.mjs', geminiKey: '', helperUrl: 'http://127.0.0.1:8787', barangays: '', surveyors: '' };
   try { return Object.assign(d, JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}')); } catch (e) { return d; }
 })();
 function saveSettings() { try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch (e) { /* private mode */ } }
@@ -648,7 +648,7 @@ async function processAll() {
   // check the chosen reader before spending time on the PDFs
   if (settings.reader === 'claude') {
     const h = await helperHealth();
-    if (!h.ok) { prog('Claude helper is not running. Open Terminal in the tool folder and run: node claude-helper.mjs — then click Process again.'); S.busy = false; updateButtons(); return; }
+    if (!h.ok) { prog('Claude helper is not running. Click Copy above, paste it in Terminal, press Enter, then click Process again.'); S.busy = false; updateButtons(); return; }
   } else if (settings.reader === 'gemini' && !settings.geminiKey) { prog('Paste your Gemini API key first.'); S.busy = false; updateButtons(); return; }
   const modelReady = settings.reader === 'offline' ? loadOcr((done, total) => { S.modelPct = Math.round((done / total) * 100); }).catch((e) => { S.modelErr = e; }) : null;
   const todo = S.files.filter((f) => !f.done);
@@ -698,10 +698,11 @@ function toCsv(rows) {
 }
 function stamp() { return new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-'); }
 
+function flash(btn, t) { const o = btn.textContent; btn.textContent = t; setTimeout(() => (btn.textContent = o), 1500); }
 function renderSettings() {
   document.querySelectorAll('input[name=reader]').forEach((r) => (r.checked = r.value === settings.reader));
   document.querySelectorAll('.sub-opt').forEach((d) => (d.hidden = d.dataset.for !== settings.reader));
-  $('geminiKey').value = settings.geminiKey; $('listBarangays').value = settings.barangays; $('listSurveyors').value = settings.surveyors;
+  $('helperCmd').value = settings.helperCmd; $('geminiKey').value = settings.geminiKey; $('listBarangays').value = settings.barangays; $('listSurveyors').value = settings.surveyors;
   if (settings.reader === 'claude') checkHelper();
 }
 async function checkHelper() {
@@ -725,6 +726,11 @@ function wire() {
   $('listBarangays').addEventListener('change', (e) => { settings.barangays = e.target.value; saveSettings(); });
   $('listSurveyors').addEventListener('change', (e) => { settings.surveyors = e.target.value; saveSettings(); });
   $('btnHelper').addEventListener('click', checkHelper);
+  $('helperCmd').addEventListener('change', (e) => { settings.helperCmd = e.target.value; saveSettings(); });
+  $('btnCopyCmd').addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText($('helperCmd').value); } catch (e) { $('helperCmd').select(); document.execCommand('copy'); }
+    flash($('btnCopyCmd'), 'Copied ✓'); setTimeout(checkHelper, 4000);
+  });
   $('btnRetry').addEventListener('click', retryRemaining);
   const drop = $('drop');
   ['dragenter', 'dragover'].forEach((e) => drop.addEventListener(e, (ev) => { ev.preventDefault(); drop.classList.add('over'); }));
