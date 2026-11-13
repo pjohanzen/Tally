@@ -1,20 +1,43 @@
 # E-WACS Survey Encoder
 
-Upload scanned, handwritten E-WACS survey PDFs and get a CSV / Excel file back. No AI chat and no API keys; everything runs in the browser, and the PDFs are never uploaded anywhere.
+Upload scanned, handwritten E-WACS survey PDFs and get a CSV / Excel file back.
 
-1. Open the tool link and drop in the PDFs (one or many; a PDF can hold one or several surveys).
-2. Click **Process PDFs**.
-3. Click **Download CSV** (or Excel).
+- **Checkboxes:** read on your computer. No AI is used.
+- **Handwriting:** only small cut-outs of the handwritten boxes are sent to the AI you pick, never whole pages.
+- **Usage:** roughly 10–15× less than uploading the PDFs to a chat.
 
-Optional: open **Check handwritten values** to fix anything the reader wasn't sure about. The downloads use your corrections.
+## Pick how handwriting is read
 
-How it reads the forms:
-- **Checkboxes:** ink is measured in the parts of each box that are empty on a blank form.
-- **Handwriting** (names, dates, counts, storage places): read by a small handwriting-recognition model (TrOCR) running on your computer. The model (~65 MB) downloads from Hugging Face the first time and is cached after that.
-- **Counts:** cleaned to whole numbers. A dash means 0.
-- **Storage places:** matched to House / Bodega / Cabinet / Garage / Outdoors when close.
+| Option | Who it's for | Setup |
+|---|---|---|
+| **Claude** | Claude Pro/Max subscribers | Claude Code installed and logged in, plus the helper running (below) |
+| **Gemini** | Anyone | A free API key from https://aistudio.google.com/apikey, pasted into the tool once |
+| **Offline** | No AI at all | Nothing. Much less accurate; names and some digits will be wrong |
 
-Upload the downloaded CSV to Claude or Gemini for analysis. It's plain text, so it uses very little.
+The choice and the Gemini key are saved in each person's own browser.
+
+### Claude setup (once per computer)
+
+1. Install Claude Code (https://code.claude.com) and run `claude` once in Terminal to log in with your Claude account.
+2. Every time you process a batch, open Terminal and run:
+   ```bash
+   cd path/to/this/folder
+   node claude-helper.mjs
+   ```
+   Leave that window open. The tool shows "Helper running" when it can see it. You can also download `claude-helper.mjs` from the tool page.
+3. The first time, Chrome may ask to allow the site to access "devices on your local network". Click **Allow**, because that's how the page talks to the helper.
+
+The helper only accepts requests from github.io pages and localhost. It runs `claude -p` on your subscription (it removes any `ANTHROPIC_API_KEY`, so nothing is billed to an API account), and it deletes the temporary sheet images after each batch. Set `EWACS_MODEL=sonnet` (or another model) before `node claude-helper.mjs` to choose the model.
+
+## How to use
+
+1. Open https://pjohanzen.github.io/pdf-tool/ and choose Claude, Gemini or Offline.
+2. Optional: under **Known names**, list the barangays/puroks and surveyor names. Readings are matched to these spellings, and anything that doesn't match is flagged.
+3. Drop in the PDFs and click **Process PDFs**.
+4. Click **Download CSV** (or Excel).
+5. Optional: open **Check handwritten values**. Anything the AI marked as unsure, or that failed a check (a count that isn't a number, a date that isn't a date, a name not on your list), is listed next to its cut-out. Fixes go into the downloads.
+
+If processing stops partway (for example a usage limit or no internet), click **Read remaining handwriting** to continue without re-reading the PDFs.
 
 ## What the Excel contains
 

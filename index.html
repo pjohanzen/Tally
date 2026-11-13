@@ -20,8 +20,33 @@
       <p>Drop scanned PDF files here, or</p>
       <label class="btn">Choose PDFs<input id="fileInput" type="file" accept="application/pdf" multiple hidden></label>
     </div>
+    <div class="reader">
+      <div class="rhead">Read handwriting with</div>
+      <label class="opt"><input type="radio" name="reader" value="claude"> <b>Claude</b> <span class="muted">uses your Claude subscription through Claude Code on this computer</span></label>
+      <div class="sub-opt" data-for="claude">
+        <span id="helperStatus" class="pill">checking…</span>
+        <span class="muted">One-time per session: open Terminal in the tool folder and run <code>node claude-helper.mjs</code>, then leave it open.</span>
+        <a href="claude-helper.mjs" download class="muted">download helper</a>
+        <button id="btnHelper" class="btn small">Check again</button>
+      </div>
+      <label class="opt"><input type="radio" name="reader" value="gemini"> <b>Gemini</b> <span class="muted">free API key from Google AI Studio</span></label>
+      <div class="sub-opt" data-for="gemini">
+        <input id="geminiKey" type="password" placeholder="Paste Gemini API key" autocomplete="off">
+        <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener" class="muted">get a free key</a>
+        <span class="muted">Saved only in this browser.</span>
+      </div>
+      <label class="opt"><input type="radio" name="reader" value="offline"> <b>Offline</b> <span class="muted">no AI, nothing leaves the computer, much less accurate</span></label>
+      <details class="names">
+        <summary class="muted">Known names (optional, improves spelling)</summary>
+        <div class="two">
+          <label>Barangays / puroks, one per line<textarea id="listBarangays" placeholder="Prk. Katilingban I&#10;Brgy. Taculing"></textarea></label>
+          <label>Surveyors / enumerators, one per line<textarea id="listSurveyors" placeholder="Sufty Alba"></textarea></label>
+        </div>
+      </details>
+    </div>
     <div class="row">
       <button id="btnProcess" class="btn primary" disabled>Process PDFs</button>
+      <button id="btnRetry" class="btn" hidden>Read remaining handwriting</button>
       <span id="progress" class="muted"></span>
     </div>
     <div class="bar"><div id="barFill"></div></div>

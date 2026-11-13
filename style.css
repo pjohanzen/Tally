@@ -53,3 +53,14 @@ summary{cursor:pointer;font-weight:600}
 .preview th{position:sticky;top:0;background:#f6f7f9}
 .rv.flag{background:#fffaf0}
 .rv select{width:100%;padding:5px 8px;border:1px solid var(--line);border-radius:6px;font:inherit}
+.reader{margin:14px 0 4px;padding:12px 14px;border:1px solid var(--line);border-radius:8px;background:#fbfcfd}
+.rhead{font-weight:600;margin-bottom:6px}
+.opt{display:block;margin:6px 0}
+.sub-opt{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:2px 0 8px 24px}
+.sub-opt input[type=password]{width:320px;padding:6px 8px;border:1px solid var(--line);border-radius:6px;font:inherit}
+.sub-opt[hidden]{display:none}
+code{background:#eef1f6;padding:1px 6px;border-radius:4px;font-size:13px}
+.names{margin-top:8px;border:none;padding-top:0}
+.names .two{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px}
+.names label{font-size:13px;color:var(--muted)}
+.names textarea{min-height:90px;margin-top:4px}

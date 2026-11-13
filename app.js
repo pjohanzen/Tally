@@ -289,11 +289,11 @@ function finishSurvey(s) {
 
 /* ---------------- values ---------------- */
 function itemValue(it) {
-  if (!it || it.value === null || it.value === undefined) return { v: '', bad: false, pending: true };
+  if (!it || it.value === null || it.value === undefined) return { v: '', bad: true, pending: true, why: 'not read yet' };
   const v = String(it.value).trim();
   if (it.kind === 'count') return /^\d+$/.test(v) ? { v: Number(v), bad: !!it.flag, why: 'check the number' } : { v, bad: true, why: 'not a number' };
   if (it.kind === 'check') return { v: v === 'X', bad: !!it.flag, why: 'faint mark: ticked or not?' };
-  return { v, bad: !!it.flag, why: v ? 'check spelling' : 'could not read' };
+  return { v, bad: !!it.flag, why: it.missed ? 'not returned by the AI' : v ? 'check spelling' : 'could not read' };
 }
 function checksFor(s, q) {
   const a = s.answers[q.id] || { on: [], unsure: {} };
@@ -357,22 +357,24 @@ async function loadOcr(onProgress) {
     const T = await import('./vendor/transformers.min.js');
     T.env.allowLocalModels = false;
     T.env.backends.onnx.wasm.wasmPaths = new URL('vendor/', location.href).href;
-    let device = 'wasm', dtype = 'q8';
-    try {
-      const ad = navigator.gpu && (await navigator.gpu.requestAdapter());
-      if (ad && ad.features.has('shader-f16') && !/[?&]wasm=1/.test(location.search)) { device = 'webgpu'; dtype = 'fp16'; }
-    } catch (e) { /* no WebGPU */ }
     const files = {};
     const progress_callback = (p) => {
       if (p.status === 'progress' && p.total) { files[p.file] = [p.loaded, p.total]; const v = Object.values(files); onProgress(v.reduce((a, x) => a + x[0], 0), v.reduce((a, x) => a + x[1], 0)); }
     };
-    try {
-      OCR.pipe = await T.pipeline('image-to-text', CFG.ocrModel, { device, dtype, progress_callback });
-    } catch (e) {
-      if (device === 'wasm') throw e;
-      console.warn('WebGPU failed, falling back to WASM', e); device = 'wasm';
-      OCR.pipe = await T.pipeline('image-to-text', CFG.ocrModel, { device, dtype: 'q8', progress_callback });
+    const make = (device, dtype) => T.pipeline('image-to-text', CFG.ocrModel, { device, dtype, progress_callback });
+    // Fastest working setup: image encoder on the GPU (full precision; half precision breaks on some Macs),
+    // text decoder on the CPU. Self-test it and fall back to CPU-only if the GPU gives wrong answers.
+    let pipe = null, device = 'wasm';
+    if (navigator.gpu && !/[?&]wasm=1/.test(location.search)) {
+      try {
+        pipe = await make({ encoder_model: 'webgpu', decoder_model_merged: 'wasm' }, { encoder_model: 'fp32', decoder_model_merged: 'q8' });
+        const out = await pipe(testImage('37'), { max_new_tokens: 6 });
+        if (!/3\s*7/.test(out[0].generated_text)) throw new Error('GPU self-test failed: ' + out[0].generated_text);
+        device = 'webgpu';
+      } catch (e) { console.warn('WebGPU not usable, using CPU', e); if (pipe) { try { await pipe.dispose(); } catch (_) {} } pipe = null; }
     }
+    if (!pipe) pipe = await make('wasm', 'q8');
+    OCR.pipe = pipe;
     OCR.device = device;
     return OCR.pipe;
   })();
@@ -380,6 +382,11 @@ async function loadOcr(onProgress) {
 }
 
 // TrOCR expects a line of text; give tiny crops a wider white canvas so they are not stretched
+function testImage(txt) {
+  const c = document.createElement('canvas'); c.width = 140; c.height = 64; const x = c.getContext('2d');
+  x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height); x.fillStyle = '#000'; x.font = '40px sans-serif'; x.fillText(txt, 30, 48);
+  return c.toDataURL('image/png');
+}
 async function ocrInput(it) {
   const img = await loadImage(it.crop);
   const h = Math.max(img.height, 48), w = Math.max(img.width, Math.round(h * 2.2)) + 20;
@@ -394,6 +401,7 @@ const DIGIT_MAP = { l: '1', I: '1', i: '1', '|': '1', '!': '1', '/': '1', '\\': 
 function cleanCount(raw) {
   let t = String(raw || '').trim();
   if (!t || /^[-–—_~=.,'"`]+$/.test(t)) return { v: '0', flag: false };
+  const toks = t.split(/\s+/); if (toks.length > 1 && toks.every((x) => x === toks[0])) t = toks[0];
   let d = '';
   for (const ch of t.replace(/\s+/g, '')) d += /\d/.test(ch) ? ch : (DIGIT_MAP[ch] || '');
   if (!d) return { v: t, flag: true };
@@ -420,14 +428,161 @@ async function readHandwriting(items, onStep) {
     if (it.kind === 'check') { it.value = it.guess ? 'X' : '-'; it.flag = true; continue; }
     if (it.kind === 'count' && it.dash) { it.value = '0'; it.raw = '—'; continue; }
     let raw = '';
-    try { const out = await pipe(await ocrInput(it), { max_new_tokens: it.kind === 'count' ? 6 : 24 }); raw = (out[0] && out[0].generated_text) || ''; }
+    try { const out = await pipe(await ocrInput(it), { max_new_tokens: it.kind === 'count' ? 5 : 24 }); raw = (out[0] && out[0].generated_text) || ''; }
     catch (e) { console.error(e); }
     it.raw = raw;
     const f = S.tpl.textFields.find((x) => x.id === it.field) || {};
-    const r = it.kind === 'count' ? cleanCount(raw) : f.column === 'where' ? snapPlace(raw) : { v: raw.trim(), flag: !raw.trim() };
+    const r = it.kind === 'count' ? cleanCount(raw) : f.column === 'where' ? snapPlace(raw)
+      : it.field === 'date' ? { v: raw.trim(), flag: !/^\d{1,2}\s*[\/.-]\s*\d{1,2}\s*[\/.-]\s*\d{2,4}$/.test(raw.trim()) }
+      : { v: raw.trim().replace(/[.]$/, ''), flag: !raw.trim() };
     it.value = r.v; it.flag = r.flag;
     if (i % 4 === 0) await tick();
   }
+}
+
+/* ---------------- AI readers: Claude (via local helper) or Gemini (API key) ---------------- */
+const SETTINGS_KEY = 'ewacs-settings-v1';
+const settings = (() => {
+  const d = { reader: 'claude', geminiKey: '', helperUrl: 'http://127.0.0.1:8787', barangays: '', surveyors: '' };
+  try { return Object.assign(d, JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}')); } catch (e) { return d; }
+})();
+function saveSettings() { try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch (e) { /* private mode */ } }
+const listOf = (txt) => String(txt || '').split(/[\n;]+/).map((x) => x.trim()).filter(Boolean);
+
+const READ_SCHEMA = { type: 'object', properties: { values: { type: 'array', items: { type: 'object',
+  properties: { id: { type: 'string' }, value: { type: 'string' }, unsure: { type: 'boolean' } }, required: ['id', 'value', 'unsure'] } } }, required: ['values'] };
+const GEMINI_SCHEMA = { type: 'OBJECT', properties: { values: { type: 'ARRAY', items: { type: 'OBJECT',
+  properties: { id: { type: 'STRING' }, value: { type: 'STRING' }, unsure: { type: 'BOOLEAN' } }, required: ['id', 'value', 'unsure'] } } }, required: ['values'] };
+
+function readerPrompt() {
+  const b = listOf(settings.barangays), s = listOf(settings.surveyors);
+  return `These images contain handwriting cropped from household survey forms (E-WACS e-waste survey, Bacolod City, Philippines).
+Each box has a yellow ID label on its left (for example 12n, 13t, 14c). Transcribe EVERY box in EVERY image exactly as written.
+
+Rules by the last letter of the ID:
+- "n" = a count of devices or people. Return digits only (e.g. "3", "12"). A dash, a single horizontal line or "none" means "0".
+- "t" = words or a date, written in English, Filipino or Hiligaynon. Copy what is written; do not translate or expand abbreviations (keep "Prk." as "Prk."). Dates exactly as written, e.g. "9/24/26".
+- "c" = a printed checkbox option. Return "X" if the [ ] box or option is ticked/marked by hand, otherwise "-".
+Set "unsure" to true whenever any character is hard to read or you had to guess; otherwise false. Never leave out an ID.${b.length ? `\nKnown barangay/purok names (use this exact spelling when the writing matches one): ${b.join('; ')}` : ''}${s.length ? `\nKnown surveyor/enumerator names (use this exact spelling when the writing matches one): ${s.join('; ')}` : ''}`;
+}
+
+// pack crops into labelled sheets (~1150 px wide) — the only thing an AI ever sees
+async function buildSheets(items) {
+  const W = 1150, MAXH = 1150, LABEL = 78, pad = 8, gap = 6, scale = 0.75;
+  const sheets = []; let cur = null, x = 0, y = 0, rowH = 0;
+  const next = () => { cur = { places: [] }; sheets.push(cur); x = 0; y = 0; rowH = 0; };
+  next();
+  for (const it of items) {
+    const img = await loadImage(it.crop);
+    const s = Math.min(scale, (W - LABEL - 2 * pad) / img.width);
+    const w = LABEL + Math.round(img.width * s) + 2 * pad, h = Math.max(40, Math.round(img.height * s) + 2 * pad);
+    if (x + w > W) { x = 0; y += rowH + gap; rowH = 0; }
+    if (y + h > MAXH && cur.places.length) next();
+    cur.places.push({ it, img, x, y, w, h, s }); x += w + gap; rowH = Math.max(rowH, h);
+  }
+  return sheets.filter((sh) => sh.places.length).map((sh) => {
+    const H = Math.max(...sh.places.map((p) => p.y + p.h)) + 4;
+    const c = document.createElement('canvas'); c.width = W; c.height = H;
+    const ctx = c.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, H);
+    for (const p of sh.places) {
+      ctx.strokeStyle = '#999'; ctx.lineWidth = 1; ctx.strokeRect(p.x + 0.5, p.y + 0.5, p.w - 1, p.h - 1);
+      ctx.fillStyle = '#ffeb3b'; ctx.fillRect(p.x + 1, p.y + 1, LABEL - 4, p.h - 2);
+      ctx.fillStyle = '#000'; ctx.font = 'bold 22px Arial, sans-serif'; ctx.textBaseline = 'middle'; ctx.fillText(p.it.id, p.x + 6, p.y + p.h / 2);
+      ctx.drawImage(p.img, p.x + LABEL + pad, p.y + pad, p.img.width * p.s, p.img.height * p.s);
+    }
+    return { ids: sh.places.map((p) => p.it.id), url: c.toDataURL('image/png') };
+  });
+}
+
+async function helperHealth() {
+  try { const r = await fetch(settings.helperUrl + '/health', { cache: 'no-store' }); return await r.json(); }
+  catch (e) { return { ok: false, error: 'helper not running' }; }
+}
+async function readWithClaude(sheets, onStep) {
+  const per = 8, out = []; let done = 0;
+  for (let i = 0; i < sheets.length; i += per) {
+    const group = sheets.slice(i, i + per);
+    onStep(`Reading handwriting with Claude: batch ${i / per + 1} of ${Math.ceil(sheets.length / per)}`, done / sheets.length);
+    const r = await fetch(settings.helperUrl + '/read', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ images: group.map((s) => s.url), prompt: readerPrompt(), schema: READ_SCHEMA }) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.error || `helper error ${r.status}`);
+    out.push(...(j.values || [])); applyValues(j.values || []); done += group.length;
+  }
+  return out;
+}
+
+async function geminiModel() {
+  if (settings.geminiModel) return settings.geminiModel;
+  const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?pageSize=200&key=${encodeURIComponent(settings.geminiKey)}`);
+  const j = await r.json();
+  if (!r.ok) throw new Error((j.error && j.error.message) || 'Gemini key not accepted');
+  const ok = (j.models || []).filter((m) => (m.supportedGenerationMethods || []).includes('generateContent')).map((m) => m.name.replace('models/', ''));
+  const ver = (n) => parseFloat((n.match(/gemini-(\d+(?:\.\d+)?)/) || [])[1] || 0);
+  const pick = ok.filter((n) => /^gemini-\d+(\.\d+)?-flash$/.test(n)).sort((a, b) => ver(b) - ver(a))[0]
+    || ok.filter((n) => /^gemini-\d+(\.\d+)?-flash(-latest|-preview[\w-]*)?$/.test(n)).sort((a, b) => ver(b) - ver(a))[0]
+    || ok.find((n) => n === 'gemini-flash-latest') || 'gemini-2.5-flash';
+  return pick;
+}
+async function readWithGemini(sheets, onStep) {
+  const model = await geminiModel(); S.geminiModel = model;
+  const per = 4, out = [];
+  for (let i = 0; i < sheets.length; i += per) {
+    const group = sheets.slice(i, i + per);
+    onStep(`Reading handwriting with Gemini (${model}): batch ${i / per + 1} of ${Math.ceil(sheets.length / per)}`, i / sheets.length);
+    const body = { contents: [{ role: 'user', parts: [{ text: readerPrompt() }, ...group.map((s) => ({ inline_data: { mime_type: 'image/png', data: s.url.split(',')[1] } }))] }],
+      generationConfig: { temperature: 0, responseMimeType: 'application/json', responseSchema: GEMINI_SCHEMA } };
+    let j = null;
+    for (let attempt = 0; attempt < 6; attempt++) {
+      const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(settings.geminiKey)}`,
+        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      j = await r.json().catch(() => ({}));
+      if (r.ok) break;
+      if (r.status === 429 || r.status >= 500) {
+        const m = JSON.stringify(j).match(/"retryDelay":\s*"(\d+)/); const wait = (m ? +m[1] + 2 : 20 * (attempt + 1));
+        onStep(`Gemini limit reached, waiting ${wait} s…`, i / sheets.length); await sleep(wait * 1000); continue;
+      }
+      throw new Error((j.error && j.error.message) || `Gemini error ${r.status}`);
+    }
+    const text = (((j.candidates || [])[0] || {}).content || { parts: [] }).parts.map((p) => p.text || '').join('');
+    let parsed = {}; try { parsed = JSON.parse(text); } catch (e) { throw new Error('Gemini returned unreadable output'); }
+    out.push(...(parsed.values || [])); applyValues(parsed.values || []);
+  }
+  return out;
+}
+
+function snapToList(raw, list) {
+  const t = String(raw || '').trim(); if (!t || !list.length) return null;
+  let best = null, bd = 99;
+  for (const p of list) { const d = lev(t.toLowerCase(), p.toLowerCase()); if (d < bd) { bd = d; best = p; } }
+  return best && bd <= Math.max(1, Math.floor(best.length * 0.35)) ? best : null;
+}
+function applyValues(values) {
+  for (const v of values || []) {
+    const it = S.items[String(v.id || '').trim().toLowerCase()]; if (!it) continue;
+    const raw = String(v.value ?? '').trim(); let value = raw, flag = !!v.unsure;
+    it.raw = raw;
+    if (it.kind === 'count') { const r = cleanCount(raw); value = r.v; flag = flag || r.flag || !/^\d+$/.test(r.v); }
+    else if (it.kind === 'check') { value = /^x$/i.test(raw) ? 'X' : '-'; }
+    else {
+      const f = S.tpl.textFields.find((x) => x.id === it.field) || {};
+      if (f.column === 'where') { const s = snapPlace(raw); if (!s.flag) value = s.v; }
+      else if (it.field === 'date') flag = flag || !/^\d{1,2}\s*[\/.-]\s*\d{1,2}\s*[\/.-]\s*\d{2,4}$/.test(raw);
+      else if (it.field === 'barangay' || it.field === 'surveyor') {
+        const list = listOf(it.field === 'barangay' ? settings.barangays : settings.surveyors);
+        const m = snapToList(raw, list); if (m) value = m; else if (list.length) flag = true;
+      }
+      if (!raw) flag = true;
+    }
+    it.value = value; it.flag = flag;
+  }
+}
+
+async function readHandwritingAI(items, prog) {
+  const sheets = await buildSheets(items);
+  S.sheetCount = (S.sheetCount || 0) + sheets.length;
+  if (settings.reader === 'gemini') await readWithGemini(sheets, prog); else await readWithClaude(sheets, prog);
+  for (const it of items) if (it.value === null) { it.value = ''; it.flag = true; it.missed = true; }
 }
 
 /* ---------------- UI ---------------- */
@@ -438,6 +593,8 @@ function updateButtons() {
   $('btnProcess').disabled = !S.ready || S.busy || !S.files.some((f) => !f.done);
   const has = S.surveys.some((s) => !s.blank) && !S.busy;
   ['btnCsvR', 'btnXlsx', 'btnCsvD'].forEach((id) => ($(id).disabled = !has));
+  const unread = Object.values(S.items).filter((it) => it.value === null).length;
+  $('btnRetry').hidden = !(unread && !S.busy && settings.reader !== 'offline');
 }
 function renderResults() {
   if (S.busy || !S.surveys.some((s) => !s.blank)) { $('preview').innerHTML = ''; return; }
@@ -487,8 +644,13 @@ function addFiles(list) {
 async function processAll() {
   S.busy = true; S.debugPages = S.debugPages || []; updateButtons();
   const prog = (t, frac) => { $('progress').textContent = t; if (frac !== undefined) $('barFill').style.width = `${Math.round(frac * 100)}%`; };
-  // start downloading the handwriting model in parallel with page analysis
-  const modelReady = loadOcr((done, total) => { S.modelPct = Math.round((done / total) * 100); }).catch((e) => { S.modelErr = e; });
+  S.progAI = (t, frac) => prog(t, frac === undefined ? undefined : 0.5 + frac * 0.5);
+  // check the chosen reader before spending time on the PDFs
+  if (settings.reader === 'claude') {
+    const h = await helperHealth();
+    if (!h.ok) { prog('Claude helper is not running. Open Terminal in the tool folder and run: node claude-helper.mjs — then click Process again.'); S.busy = false; updateButtons(); return; }
+  } else if (settings.reader === 'gemini' && !settings.geminiKey) { prog('Paste your Gemini API key first.'); S.busy = false; updateButtons(); return; }
+  const modelReady = settings.reader === 'offline' ? loadOcr((done, total) => { S.modelPct = Math.round((done / total) * 100); }).catch((e) => { S.modelErr = e; }) : null;
   const todo = S.files.filter((f) => !f.done);
   let i = 0;
   for (const f of todo) {
@@ -497,8 +659,16 @@ async function processAll() {
     renderFiles(); await tick();
   }
   const items = Object.values(S.items).filter((it) => it.value === null).sort((a, b) => parseInt(a.id) - parseInt(b.id));
-  if (items.length) {
-    const wait = setInterval(() => { if (!OCR.pipe) prog(`Downloading handwriting model (first time only, ~65 MB)… ${S.modelPct || 0}%`); }, 300);
+  if (items.length && settings.reader !== 'offline') {
+    try { await readHandwritingAI(items, S.progAI); }
+    catch (e) {
+      console.error(e);
+      const left = Object.values(S.items).filter((it) => it.value === null).length;
+      prog(`Stopped while reading handwriting: ${e.message}. ${left} value(s) not read yet; click "Read remaining handwriting" to continue.`);
+      S.busy = false; renderAll(); window.__done = true; return;
+    }
+  } else if (items.length) {
+    const wait = setInterval(() => { if (!OCR.pipe) prog(`Downloading handwriting model (first time only, ~130 MB)… ${S.modelPct || 0}%`); }, 300);
     await modelReady; clearInterval(wait);
     if (S.modelErr || !OCR.pipe) {
       prog('Could not load the handwriting model: ' + (S.modelErr && S.modelErr.message) + '. Check your internet connection and try again.');
@@ -509,7 +679,6 @@ async function processAll() {
       const eta = k > 3 ? Math.round(((performance.now() - t0) / k) * (n - k) / 1000) : null;
       prog(`Reading handwriting ${k} of ${n}${eta !== null ? ` · about ${eta < 90 ? eta + ' s' : Math.round(eta / 60) + ' min'} left` : ''}`, 0.5 + (k / n) * 0.5);
     });
-    S.ocrSecs = (performance.now() - t0) / 1000;
   }
   const n = S.surveys.filter((s) => !s.blank).length;
   prog(`Done: ${n} survey(s) from ${S.files.length} PDF(s).`, 1);
@@ -529,7 +698,34 @@ function toCsv(rows) {
 }
 function stamp() { return new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-'); }
 
+function renderSettings() {
+  document.querySelectorAll('input[name=reader]').forEach((r) => (r.checked = r.value === settings.reader));
+  document.querySelectorAll('.sub-opt').forEach((d) => (d.hidden = d.dataset.for !== settings.reader));
+  $('geminiKey').value = settings.geminiKey; $('listBarangays').value = settings.barangays; $('listSurveyors').value = settings.surveyors;
+  if (settings.reader === 'claude') checkHelper();
+}
+async function checkHelper() {
+  const el = $('helperStatus'); el.textContent = 'checking…'; el.className = 'pill';
+  const h = await helperHealth();
+  el.textContent = h.ok ? `Helper running · Claude Code ${String(h.claude || '').split(' ')[0]}` : 'Helper not running';
+  el.className = 'pill ' + (h.ok ? 'ok' : 'err');
+}
+async function retryRemaining() {
+  const items = Object.values(S.items).filter((it) => it.value === null);
+  if (!items.length) return;
+  S.busy = true; updateButtons();
+  const prog = (t, f) => { $('progress').textContent = t; if (f !== undefined) $('barFill').style.width = `${Math.round(f * 100)}%`; };
+  try { await readHandwritingAI(items, prog); prog('Done.', 1); }
+  catch (e) { prog(`Stopped: ${e.message}. Click "Read remaining handwriting" to try again.`); }
+  S.busy = false; renderAll();
+}
 function wire() {
+  document.querySelectorAll('input[name=reader]').forEach((r) => r.addEventListener('change', () => { settings.reader = r.value; saveSettings(); renderSettings(); }));
+  $('geminiKey').addEventListener('change', (e) => { settings.geminiKey = e.target.value.trim(); delete settings.geminiModel; saveSettings(); });
+  $('listBarangays').addEventListener('change', (e) => { settings.barangays = e.target.value; saveSettings(); });
+  $('listSurveyors').addEventListener('change', (e) => { settings.surveyors = e.target.value; saveSettings(); });
+  $('btnHelper').addEventListener('click', checkHelper);
+  $('btnRetry').addEventListener('click', retryRemaining);
   const drop = $('drop');
   ['dragenter', 'dragover'].forEach((e) => drop.addEventListener(e, (ev) => { ev.preventDefault(); drop.classList.add('over'); }));
   ['dragleave', 'drop'].forEach((e) => drop.addEventListener(e, (ev) => { ev.preventDefault(); drop.classList.remove('over'); }));
@@ -555,4 +751,5 @@ function wire() {
 }
 
 wire();
+renderSettings();
 boot();
