@@ -360,9 +360,14 @@ function wireBuilder() {
   });
   $('formImport').addEventListener('change', async (e) => {
     const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+    // a PDF here means "make a form from this blank PDF": open the builder with it
+    if (/\.pdf$/i.test(f.name) || f.type === 'application/pdf') {
+      B.editingId = null; $('bEdit').hidden = true; $('bName').value = f.name.replace(/\.pdf$/i, '');
+      $('builder').showModal(); startFromPdf(f); return;
+    }
     try {
       const t = JSON.parse(await f.text());
-      if (!Array.isArray(t.pages) || !Array.isArray(t.questions) || !Array.isArray(t.textFields)) throw new Error('not a Tally form file');
+      if (!Array.isArray(t.pages) || !Array.isArray(t.questions) || !Array.isArray(t.textFields)) throw new Error('this is not a Tally form file. To use a blank PDF, choose it here or click New form from a blank PDF');
       if (t.pages.some((p) => !/^data:image\//.test(p.ref || ''))) throw new Error('the form file is missing its page images');
       if (BUILTIN_FORMS.some((b) => b.id === t.id)) t.id = `${t.id}-imported`;
       t.custom = true; await FormStore.put(t); await useForm(t.id); setStatus('Ready', 'ok');

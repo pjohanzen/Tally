@@ -158,7 +158,7 @@ Tips:
 Tally comes with the E-WACS form built in, and you can teach it any other paper form in a few minutes.
 
 1. **Get a blank copy** of the form as a PDF: scan an unfilled form, or export the original document to PDF.
-2. In Tally, step 1 **Choose the form** → **New form from a blank PDF**. Give it a name and choose the PDF.
+2. In Tally, step 1 **Choose the form**: click **New form from a blank PDF**, or **Import a form** and pick the PDF. Give it a name if asked.
 3. Tally finds the answer areas on every page:
    - checkboxes, printed as `[ ]` or as small squares
    - write-in lines (`Name: ________`)
@@ -171,7 +171,7 @@ Tally comes with the E-WACS form built in, and you can teach it any other paper 
    - Tick **Draw a missing box** and drag on the page to add one.
 6. **Save form.** It becomes the active form and is remembered in this browser. **Edit** and **Delete** appear next to it.
 
-**Share a form with your team:** choose it and click **Export this form**, which gives you a `.tally.json` file with the page images inside. Your teammates use **Import a form file**. Forms are saved per browser, so each computer needs the import once.
+**Share a form with your team:** choose it and click **Export this form**, which gives you a `.tally.json` file with the page images inside. Your teammates use **Import a form** and pick that file. Forms are saved per browser, so each computer needs the import once.
 
 Tips:
 - **Blank copy:** the cleaner the blank copy, the better the detection. Ticks or writing on the "blank" form hide those boxes.

@@ -3,7 +3,7 @@
  * -> per-field local alignment (matchTemplate) -> checkboxes by ink count -> handwriting crops for the AI sheets.
  */
 'use strict';
-const APP_VERSION = '2026.11.13-15';
+const APP_VERSION = '2026.11.13-16';
 
 const CFG = {
   refWidth: 1653,           // pages are rendered so the short side is this many px (A4 at 200 dpi)
