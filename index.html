@@ -4,21 +4,23 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>E-WACS Survey Encoder</title>
-<link rel="stylesheet" href="style.css?v=2026.11.13-8">
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="style.css?v=2026.11.13-10">
 </head>
 <body>
 <header>
   <h1>E-WACS Survey Encoder</h1>
   <p class="sub">Upload scanned survey PDFs → get a CSV / Excel file. Everything runs in this browser; your PDFs are never uploaded.</p>
-  <div id="libstatus" class="pill">Loading tools…</div> <span class="muted ver">version 2026.11.13-8</span>
+  <div id="libstatus" class="pill">Loading tools…</div> <span class="muted ver">version 2026.11.13-10</span>
 </header>
 
 <main>
   <section>
     <h2><span class="num">1</span> Upload PDFs</h2>
     <div id="drop" class="drop">
-      <p>Drop scanned PDF files here, or</p>
-      <label class="btn">Choose PDFs<input id="fileInput" type="file" accept="application/pdf" multiple hidden></label>
+      <p>Drop PDFs, ZIP files or whole folders here, or</p>
+      <label class="btn">Choose PDFs or ZIPs<input id="fileInput" type="file" accept=".pdf,.zip,application/pdf,application/zip" multiple hidden></label>
+      <label class="btn">Choose a folder<input id="folderInput" type="file" webkitdirectory multiple hidden></label>
     </div>
     <div class="reader">
       <div class="rhead">Read handwriting with</div>
@@ -45,9 +47,11 @@
     <div class="row">
       <button id="btnProcess" class="btn primary" disabled>Process PDFs</button>
       <button id="btnRetry" class="btn" hidden>Read remaining handwriting</button>
+      <button id="btnClear" class="btn danger" hidden>Clear list</button>
       <span id="progress" class="muted"></span>
     </div>
     <div class="bar"><div id="barFill"></div></div>
+    <div id="fileCount" class="muted"></div>
     <ul id="fileList" class="filelist"></ul>
   </section>
 
@@ -76,7 +80,8 @@
 
 <script src="vendor/pdf.min.js"></script>
 <script src="vendor/xlsx.full.min.js"></script>
+<script src="vendor/fflate.min.js"></script>
 <script src="vendor/opencv.js" async></script>
-<script src="app.js?v=2026.11.13-8"></script>
+<script src="app.js?v=2026.11.13-10"></script>
 </body>
 </html>

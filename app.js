@@ -3,7 +3,7 @@
  * -> per-field local alignment (matchTemplate) -> checkboxes by ink count -> handwriting crops for the AI sheets.
  */
 'use strict';
-const APP_VERSION = '2026.11.13-8';
+const APP_VERSION = '2026.11.13-10';
 
 const CFG = {
   template: 'templates/ewacs-v1.json',
@@ -128,13 +128,13 @@ async function renderPage(pdf, i) {
 }
 
 async function processFile(f) {
-  f.status = 'reading…'; renderFiles();
-  const buf = await f.file.arrayBuffer();
-  const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+  f.status = 'reading…'; renderFileStatus(f);
+  const bytes = await fileBytes(f);
+  const pdf = await pdfjsLib.getDocument({ data: bytes }).promise;
   let survey = null, last = 0, count = 0;
   const unknown = [];
   for (let i = 1; i <= pdf.numPages; i++) {
-    f.status = `page ${i}/${pdf.numPages}`; renderFiles(); await tick();
+    f.status = `page ${i}/${pdf.numPages}`; renderFileStatus(f); await tick();
     const canvas = await renderPage(pdf, i);
     const res = analysePage(canvas, last + 1 <= S.refs.length ? last + 1 : 1);
     canvas.width = canvas.height = 0;
@@ -149,12 +149,15 @@ async function processFile(f) {
   const mine = S.surveys.filter((s) => s.fileKey === f.key);
   for (const s of mine) finishSurvey(s);
   if (unknown.length) {
-    const tgt = mine[0];
+    const tgt = mine.find((s) => !s.blank);
     if (tgt) tgt.flags.push(`Page(s) ${unknown.join(', ')} of the PDF did not match the form`);
   }
   const real = mine.filter((s) => !s.blank).length, blank = mine.length - real;
-  f.status = `${real} survey${real === 1 ? '' : 's'}` + (blank ? ` · ${blank} blank skipped` : '') + (unknown.length ? ` · ${unknown.length} page(s) not recognised` : '');
-  f.cls = unknown.length || mine.some((s) => !s.blank && s.flags.length) ? 'warn' : 'ok';
+  const missing = mine.filter((s) => !s.blank && s.flags.some((x) => /^Missing form page/.test(x)));
+  if (!real) f.issue = unknown.length ? `No E-WACS survey found (${unknown.length} page(s) did not match the form)` : 'No filled survey found (only blank pages)';
+  else if (unknown.length) f.issue = `${unknown.length} page(s) did not match the form`;
+  f.status = `${real} survey${real === 1 ? '' : 's'}` + (blank ? ` · ${blank} blank skipped` : '') + (missing.length ? ' · pages missing' : '') + (unknown.length ? ` · ${unknown.length} page(s) not recognised` : '');
+  f.cls = !real ? 'err' : unknown.length || mine.some((s) => !s.blank && s.flags.length) ? 'warn' : 'ok';
   f.done = true;
 }
 
@@ -346,6 +349,7 @@ function buildRows() {
     for (const n of notes) review.push({ respondent_id: rid, file: s.file, issue: n });
     resp.push(row);
   }
+  for (const f of S.files) if (f.issue && !resp.some((r) => r.file === f.name)) review.push({ respondent_id: '', file: f.name, issue: f.issue });
   return { resp, dev, review };
 }
 
@@ -531,6 +535,9 @@ function snapToList(raw, list) {
   const t = String(raw || '').trim(); if (!t || !list.length) return null;
   let best = null, bd = 99;
   for (const p of list) { const d = lev(t.toLowerCase(), p.toLowerCase()); if (d < bd) { bd = d; best = p; } }
+  // never "correct" a number: Barangay 12 must not become Barangay 13
+  const digits = (x) => (x.match(/\d+/g) || []).join(',');
+  if (best && digits(best) !== digits(t)) return null;
   return best && bd <= Math.max(1, Math.floor(best.length * 0.35)) ? best : null;
 }
 function applyValues(values) {
@@ -564,7 +571,14 @@ async function readHandwritingAI(items, prog) {
 
 /* ---------------- UI ---------------- */
 function renderFiles() {
-  $('fileList').innerHTML = S.files.map((f) => `<li><span>${esc(f.name)}</span><span class="st ${f.cls || ''}">${esc(f.status || 'waiting')}</span></li>`).join('');
+  const MAX = 300, list = S.files.length > MAX ? S.files.filter((f) => !f.done || f.cls !== 'ok').slice(0, MAX) : S.files;
+  const done = S.files.filter((f) => f.done).length, warn = S.files.filter((f) => f.cls === 'warn' || f.cls === 'err').length;
+  $('fileCount').textContent = S.files.length ? `${S.files.length} PDF(s) · ${done} processed${warn ? ` · ${warn} need a look` : ''}${S.files.length > MAX ? ` (showing ${list.length})` : ''}` : '';
+  $('fileList').innerHTML = list.map((f) => `<li data-k="${esc(f.key)}"><span>${esc(f.name)}</span><span class="st ${f.cls || ''}">${esc(f.status || 'waiting')}</span></li>`).join('');
+}
+function renderFileStatus(f) {
+  const li = [...$('fileList').children].find((x) => x.dataset.k === f.key);
+  if (li) { const st = li.lastElementChild; st.textContent = f.status || ''; st.className = 'st ' + (f.cls || ''); } else renderFiles();
 }
 function updateButtons() {
   $('btnProcess').disabled = !S.ready || S.busy || !S.files.some((f) => !f.done);
@@ -572,6 +586,7 @@ function updateButtons() {
   ['btnCsvR', 'btnXlsx', 'btnCsvD'].forEach((id) => ($(id).disabled = !has));
   const unread = Object.values(S.items).filter((it) => it.value === null).length;
   $('btnRetry').hidden = !(unread && !S.busy && settings.reader !== 'offline');
+  $('btnClear').hidden = !S.files.length || S.busy;
 }
 function renderResults() {
   if (S.busy || !S.surveys.some((s) => !s.blank)) { $('preview').innerHTML = ''; return; }
@@ -589,7 +604,8 @@ function renderReview() {
   const all = $('showAll').checked;
   const items = Object.values(S.items).filter((it) => it.value !== null && (all || itemValue(it).bad))
     .sort((a, b) => (itemValue(b).bad - itemValue(a).bad) || (parseInt(a.id) - parseInt(b.id)));
-  $('review').innerHTML = items.map((it) => {
+  const LIMIT = 400, shown = items.slice(0, LIMIT);
+  $('review').innerHTML = (items.length > LIMIT ? `<p class="muted">Showing the first ${LIMIT} of ${items.length}. Fix these, and the next ones appear.</p>` : '') + shown.map((it) => {
     const r = itemValue(it);
     const input = it.kind === 'check'
       ? `<select data-item="${it.id}"><option value="X"${it.value === 'X' ? ' selected' : ''}>Ticked</option><option value="-"${it.value !== 'X' ? ' selected' : ''}>Not ticked</option></select>`
@@ -608,15 +624,64 @@ function renderDebug() { if (S.debug) $('debugPages').innerHTML = (S.debugPages 
 function renderAll() { renderFiles(); renderResults(); renderReview(); renderDebug(); updateButtons(); }
 function esc(s) { return String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 
-function addFiles(list) {
-  for (const file of list) {
-    if (!/\.pdf$/i.test(file.name)) continue;
-    const key = `${file.name}|${file.size}`;
-    if (S.files.some((f) => f.key === key)) continue;
-    S.files.push({ key, name: file.name, file });
+/* ---------------- bulk input: PDFs, ZIPs, folders ---------------- */
+const isPdf = (n) => /\.pdf$/i.test(n) && !/(^|\/)(__MACOSX|\.)/.test(n);
+const isZip = (n) => /\.zip$/i.test(n);
+S.zips = new Map();
+
+function queuePdf(name, size, src) {
+  const key = `${name}|${size}`;
+  if (S.files.some((f) => f.key === key)) return false;
+  S.files.push({ key, name, size, ...src });
+  return true;
+}
+async function addZip(file, prefix = '') {
+  const zkey = `${file.name}|${file.size}`;
+  let buf;
+  try { buf = new Uint8Array(await file.arrayBuffer()); } catch (e) { return { added: 0, error: `${file.name}: could not read` }; }
+  const names = [];
+  try { fflate.unzipSync(buf, { filter: (f) => { if (isPdf(f.name)) names.push(f.name); return false; } }); }
+  catch (e) { return { added: 0, error: `${file.name}: not a valid ZIP (${e.message})` }; }
+  S.zips.set(zkey, buf);
+  let added = 0;
+  for (const n of names) if (queuePdf(`${prefix}${file.name.replace(/\.zip$/i, '')}/${n}`, `${zkey}:${n}`, { zip: zkey, entry: n })) added++;
+  return { added };
+}
+async function fileBytes(f) {
+  if (f.file) return new Uint8Array(await f.file.arrayBuffer());
+  const buf = S.zips.get(f.zip); if (!buf) throw new Error('ZIP no longer loaded; add it again');
+  const out = fflate.unzipSync(buf, { filter: (x) => x.name === f.entry });
+  if (!out[f.entry]) throw new Error('file missing inside ZIP');
+  return out[f.entry];
+}
+// walk a dropped folder (Chrome/Edge/Safari)
+function entryFiles(entry, path = '') {
+  return new Promise((resolve) => {
+    if (entry.isFile) return entry.file((f) => resolve([{ file: f, path: path + f.name }]), () => resolve([]));
+    if (!entry.isDirectory) return resolve([]);
+    const reader = entry.createReader(), all = [];
+    const read = () => reader.readEntries(async (batch) => {
+      if (!batch.length) { const nested = await Promise.all(all.map((e) => entryFiles(e, `${path}${entry.name}/`))); return resolve(nested.flat()); }
+      all.push(...batch); read();
+    }, () => resolve([]));
+    read();
+  });
+}
+async function addFiles(list) {
+  // list: array of {file, path}
+  let added = 0, zips = 0, skipped = 0; const errors = [];
+  $('progress').textContent = 'Adding files…';
+  for (const { file, path } of list) {
+    const name = path || file.name;
+    if (isPdf(name)) { if (queuePdf(name, file.size, { file })) added++; }
+    else if (isZip(name)) { zips++; const r = await addZip(file, path ? path.slice(0, path.length - file.name.length) : ''); added += r.added; if (r.error) errors.push(r.error); }
+    else skipped++;
   }
+  const queued = S.files.filter((f) => !f.done).length;
+  $('progress').textContent = `Added ${added} PDF(s)${zips ? ` from ${zips} ZIP(s) and files` : ''}${skipped ? ` · skipped ${skipped} non-PDF file(s)` : ''}${errors.length ? ` · ${errors.join('; ')}` : ''} · ${queued} waiting to process.`;
   renderFiles(); updateButtons();
 }
+const fromInput = (files) => [...files].map((f) => ({ file: f, path: f.webkitRelativePath || '' }));
 
 async function processAll() {
   S.busy = true; S.debugPages = S.debugPages || []; updateButtons();
@@ -633,7 +698,7 @@ async function processAll() {
   let i = 0;
   for (const f of todo) {
     prog(`Reading PDF ${++i} of ${todo.length}: ${f.name}`, (i - 1) / todo.length * 0.5);
-    try { await processFile(f); } catch (e) { console.error(e); f.status = 'error: ' + e.message; f.cls = 'err'; f.done = true; }
+    try { await processFile(f); } catch (e) { console.error(e); f.status = 'could not open: ' + e.message; f.cls = 'err'; f.done = true; f.issue = `Could not open this PDF (${e.message})`; }
     renderFiles(); await tick();
   }
   const items = Object.values(S.items).filter((it) => it.value === null).sort((a, b) => parseInt(a.id) - parseInt(b.id));
@@ -672,7 +737,7 @@ function download(name, blobOrUrl) {
 function toCsv(rows) {
   if (!rows.length) return '';
   const cols = Object.keys(rows[0]);
-  const q = (v) => { v = v ?? ''; v = String(v); return /[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v; };
+  const q = (v) => { v = v ?? ''; v = String(v); if (/^[=+@\t\r]/.test(v)) v = "'" + v; return /[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v; };
   return [cols.join(','), ...rows.map((r) => cols.map((c) => q(r[c])).join(','))].join('\n');
 }
 function stamp() { return new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-'); }
@@ -723,11 +788,22 @@ function wire() {
     flash($('btnCopyCmd'), 'Copied ✓'); setTimeout(checkHelper, 4000);
   });
   $('btnRetry').addEventListener('click', retryRemaining);
+  $('btnClear').addEventListener('click', () => {
+    if (!confirm('Remove all PDFs and results from this page? Download your CSV first if you need it.')) return;
+    S.files = []; S.surveys = []; S.items = {}; S.zips.clear(); S.debugPages = []; S.readerUsed = '';
+    $('progress').textContent = ''; $('barFill').style.width = '0'; $('summary').textContent = 'Results appear here after processing.';
+    renderAll();
+  });
   const drop = $('drop');
   ['dragenter', 'dragover'].forEach((e) => drop.addEventListener(e, (ev) => { ev.preventDefault(); drop.classList.add('over'); }));
   ['dragleave', 'drop'].forEach((e) => drop.addEventListener(e, (ev) => { ev.preventDefault(); drop.classList.remove('over'); }));
-  drop.addEventListener('drop', (ev) => addFiles(ev.dataTransfer.files));
-  $('fileInput').addEventListener('change', (ev) => { addFiles(ev.target.files); ev.target.value = ''; });
+  drop.addEventListener('drop', async (ev) => {
+    const items = [...(ev.dataTransfer.items || [])].map((it) => it.webkitGetAsEntry && it.webkitGetAsEntry()).filter(Boolean);
+    if (items.length) { const nested = await Promise.all(items.map((e) => entryFiles(e))); addFiles(nested.flat()); }
+    else addFiles(fromInput(ev.dataTransfer.files));
+  });
+  $('fileInput').addEventListener('change', (ev) => { addFiles(fromInput(ev.target.files)); ev.target.value = ''; });
+  $('folderInput').addEventListener('change', (ev) => { addFiles(fromInput(ev.target.files)); ev.target.value = ''; });
   $('btnProcess').addEventListener('click', processAll);
   $('showAll').addEventListener('change', renderReview);
   $('review').addEventListener('change', (ev) => {

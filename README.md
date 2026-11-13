@@ -28,11 +28,11 @@ The tool shows a ready-made command with a **Copy** button. Paste it into Termin
 
 1. Open https://pjohanzen.github.io/pdf-tool/, choose Claude, Gemini or Offline, and (for Claude/Gemini) start the helper with the copied command.
 2. Optional: under **Known names**, list the barangays/puroks and surveyor names. Readings are matched to these spellings, and anything that doesn't match is flagged.
-3. Drop in the PDFs and click **Process PDFs**.
+3. Add the scans: drop in PDFs, **ZIP files** (folders inside the ZIP are fine) or a **whole folder**, or use **Choose PDFs or ZIPs** / **Choose a folder**. Non-PDF files are skipped. Then click **Process PDFs**. Each respondent ID is the PDF's path (e.g. `BrgyA/day1/s01`), with `#2`, `#3`… when one PDF holds several surveys.
 4. Click **Download CSV** (or Excel).
 5. Optional: open **Check handwritten values**. Anything the AI marked as unsure, or that failed a check (a count that isn't a number, a date that isn't a date, a name not on your list), is listed next to its cut-out. Fixes go into the downloads.
 
-If processing stops partway (for example a usage limit or no internet), click **Read remaining handwriting** to continue without re-reading the PDFs.
+PDFs that can't be opened or don't contain this form are listed in the Review sheet. If processing stops partway (for example a usage limit or no internet), click **Read remaining handwriting** to continue without re-reading the PDFs.
 
 ## What the Excel contains
 
@@ -68,7 +68,7 @@ Debug view: add `?debug=1` to the URL to see the aligned pages with the field bo
 ## Limits / next steps
 
 - The template (`templates/ewacs-v1.json`) was mapped from one filled sample, and the page 1–2 references are blank scans. A clean **blank scan of pages 3–5** would make the references cleaner.
-- Tested on the sample and on a rotated, rescaled, blurred 150 dpi copy: every checkbox was correct or flagged for checking. Handwriting recognition is the weakest part (names and messy writing especially), so spot-check the first real batch against the paper forms.
+- Tested on the sample, a rotated/rescaled/blurred 150 dpi copy, a 60-PDF ZIP (≈3.5 min, ~100 MB memory) and a messy batch (nested folders, corrupt PDF, unrelated PDF, missing pages, two surveys in one PDF): every checkbox was correct or flagged for checking. Handwriting recognition is the weakest part (names and messy writing especially), so spot-check the first real batch against the paper forms.
 - A different questionnaire needs its own template JSON plus reference page images.
 
 Third-party libraries (in `vendor/`): pdf.js, SheetJS Community Edition, OpenCV.js, transformers.js + ONNX Runtime Web (all Apache-2.0 / MIT). Model: microsoft/trocr-small-handwritten (ONNX export by Xenova).
