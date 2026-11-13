@@ -68,3 +68,5 @@ code{background:#eef1f6;padding:1px 6px;border-radius:4px;font-size:13px}
 .cmdrow{display:flex;gap:8px;margin-top:4px}
 .cmdrow input{flex:1;font:13px ui-monospace,Menlo,Consolas,monospace;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:#f6f7f9}
 .ver{font-size:12px;margin-left:8px}
+.modelpick{display:inline-flex;gap:6px;align-items:center}
+.modelpick select{padding:4px 6px;border:1px solid var(--line);border-radius:6px;font:inherit;max-width:260px}

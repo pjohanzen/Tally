@@ -22,7 +22,7 @@ The tool shows a ready-made command with a **Copy** button. Paste it into Termin
 
 - The first time, the browser may ask to let the site access "devices on your local network". Click **Allow**, because that's how the page talks to the helper.
 - The helper only accepts requests from github.io pages and localhost, sends only the handwriting sheet images to the AI, and deletes them after each batch.
-- To choose a model, set `EWACS_CLAUDE_MODEL` (e.g. `sonnet`) or `EWACS_GEMINI_MODEL` (a slug from `agy models`) before starting the helper.
+- To choose a model, set `EWACS_CLAUDE_MODEL` (e.g. `sonnet`) or `EWACS_GEMINI_MODEL` (a slug from `agy models`) before starting the helper. By default the helper picks the newest Gemini Flash model and low effort for speed.
 
 ## How to use
 

@@ -3,7 +3,7 @@
  * -> per-field local alignment (matchTemplate) -> checkboxes by ink count -> handwriting crops for the AI sheets.
  */
 'use strict';
-const APP_VERSION = '2026.11.13-5';
+const APP_VERSION = '2026.11.13-7';
 
 const CFG = {
   template: 'templates/ewacs-v1.json',
@@ -451,11 +451,11 @@ function defaultHelperCmd() {
     : `curl -fsSL ${url} -o ~/ewacs-ai-helper.mjs && node ~/ewacs-ai-helper.mjs`;
 }
 const settings = (() => {
-  const d = { reader: 'claude', helperCmd: '', helperUrl: 'http://127.0.0.1:8787', barangays: '', surveyors: '' };
+  const d = { reader: 'claude', helperCmd: '', helperUrl: 'http://127.0.0.1:8787', barangays: '', surveyors: '', models: {} };
   let s; try { s = Object.assign(d, JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}')); } catch (e) { s = d; }
   if (!s.helperCmd || /claude-helper\.mjs/.test(s.helperCmd)) s.helperCmd = defaultHelperCmd();
   if (!['claude', 'gemini', 'offline'].includes(s.reader)) s.reader = 'claude';
-  delete s.geminiKey; delete s.geminiModel;
+  delete s.geminiKey; delete s.geminiModel; if (!s.models || typeof s.models !== 'object') s.models = {};
   return s;
 })();
 function saveSettings() { try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch (e) { /* private mode */ } }
@@ -513,10 +513,15 @@ async function readWithHelper(engine, sheets, onStep) {
   let done = 0;
   for (let i = 0; i < sheets.length; i += per) {
     const group = sheets.slice(i, i + per);
-    onStep(`Reading handwriting with ${name}: batch ${i / per + 1} of ${Math.ceil(sheets.length / per)}`, done / sheets.length);
-    const r = await fetch(settings.helperUrl + '/read', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ engine, images: group.map((s) => s.url), prompt: readerPrompt(), schema: READ_SCHEMA }) });
-    const j = await r.json().catch(() => ({}));
+    const label = `Reading handwriting with ${name}: batch ${i / per + 1} of ${Math.ceil(sheets.length / per)}`, t0 = Date.now();
+    onStep(label, done / sheets.length);
+    const timer = setInterval(() => onStep(`${label} · ${Math.round((Date.now() - t0) / 1000)} s`), 1000);
+    let r, j;
+    try {
+      r = await fetch(settings.helperUrl + '/read', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ engine, model: settings.models[engine] || '', images: group.map((s) => s.url), prompt: readerPrompt(), schema: READ_SCHEMA }) });
+      j = await r.json().catch(() => ({}));
+    } finally { clearInterval(timer); }
     if (!r.ok) throw new Error(j.error || `helper error ${r.status}`);
     applyValues(j.values || []); done += group.length;
   }
@@ -550,7 +555,7 @@ function applyValues(values) {
 }
 
 async function readHandwritingAI(items, prog) {
-  S.readerUsed = settings.reader === 'gemini' ? 'Gemini' : 'Claude';
+  S.readerUsed = (settings.reader === 'gemini' ? 'Gemini' : 'Claude') + (settings.models[settings.reader] ? ` (${settings.models[settings.reader]})` : '');
   const sheets = await buildSheets(items);
   S.sheetCount = (S.sheetCount || 0) + sheets.length;
   await readWithHelper(settings.reader, sheets, prog);
@@ -686,6 +691,15 @@ async function checkHelper() {
   const v = h.engines && h.engines[settings.reader];
   el.textContent = v ? `Helper running · ${name} found` : `Helper running · ${name} not found`;
   el.className = 'pill ' + (v ? 'ok' : 'err');
+  if (v) loadModels();
+}
+async function loadModels() {
+  const sel = $('modelSel'), cur = settings.models[settings.reader] || '';
+  const def = settings.reader === 'gemini' ? 'Default (newest Flash, fast)' : 'Default (Claude Code setting)';
+  let list = [];
+  try { list = (await (await fetch(`${settings.helperUrl}/models?engine=${settings.reader}`, { cache: 'no-store' })).json()).models || []; } catch (e) { /* helper not running */ }
+  if (cur && !list.includes(cur)) list.unshift(cur);
+  sel.innerHTML = `<option value="">${def}</option>` + list.map((m) => `<option value="${esc(m)}"${m === cur ? ' selected' : ''}>${esc(m)}</option>`).join('');
 }
 async function retryRemaining() {
   const items = Object.values(S.items).filter((it) => it.value === null);
@@ -701,6 +715,7 @@ function wire() {
   $('listBarangays').addEventListener('change', (e) => { settings.barangays = e.target.value; saveSettings(); });
   $('listSurveyors').addEventListener('change', (e) => { settings.surveyors = e.target.value; saveSettings(); });
   $('btnHelper').addEventListener('click', checkHelper);
+  $('modelSel').addEventListener('change', (e) => { settings.models[settings.reader] = e.target.value; saveSettings(); });
   $('helperCmd').addEventListener('change', (e) => { settings.helperCmd = e.target.value.trim() || defaultHelperCmd(); saveSettings(); renderSettings(); });
   $('btnResetCmd').addEventListener('click', () => { settings.helperCmd = defaultHelperCmd(); saveSettings(); renderSettings(); });
   $('btnCopyCmd').addEventListener('click', async () => {

@@ -32,14 +32,15 @@ function cleanEnv() {
 
 function run(cmd, args, cwd, opts = {}) {
   return new Promise((resolve) => {
-    let p;
+    let p, timer;
     try { p = spawn(cmd, args, { cwd, env: cleanEnv(), shell: !!opts.shell, windowsHide: true }); }
     catch (e) { return resolve({ code: -1, out: '', err: String(e.message || e) }); }
     let out = '', err = '';
     p.stdout.on('data', (d) => (out += d)); p.stderr.on('data', (d) => (err += d));
     if (opts.stdin !== undefined) { p.stdin.end(opts.stdin); } else { p.stdin.end(); }
     p.on('error', (e) => resolve({ code: -1, out, err: String(e.message || e) }));
-    p.on('close', (code) => resolve({ code, out, err }));
+    if (opts.timeoutMs) timer = setTimeout(() => { try { p.kill(); } catch (_) {} err += `\nTimed out after ${opts.timeoutMs / 1000} s`; }, opts.timeoutMs);
+    p.on('close', (code) => { clearTimeout(timer); resolve({ code, out, err }); });
   });
 }
 
@@ -73,7 +74,20 @@ function extractJson(text) {
   try { return JSON.parse(t.slice(a, b + 1)); } catch (_) { return null; }
 }
 
-async function readSheets({ engine, images, prompt, schema }) {
+// Antigravity defaults to a slow, high-effort model. Pick the newest non-lite Flash model it offers.
+async function agyFastModel(cli) {
+  const E = ENGINES.gemini;
+  if (E.model || E.autoModel !== undefined) return E.model || E.autoModel;
+  const r = await run(cli.cmd, [...cli.pre, 'models'], tmpdir());
+  const slugs = [...new Set((r.out.match(/\bgemini-[\w.-]*flash[\w.-]*/gi) || []).filter((m) => !/lite|image|tts|live/i.test(m)))];
+  const ver = (m) => parseFloat((m.match(/gemini-(\d+(?:\.\d+)?)/i) || [])[1] || 0);
+  slugs.sort((a, b) => ver(b) - ver(a) || (/low/.test(b) - /low/.test(a)));
+  E.autoModel = slugs[0] || '';
+  console.log(E.autoModel ? `  Gemini model: ${E.autoModel} (fast). Set EWACS_GEMINI_MODEL to override.` : '  Gemini model: Antigravity default');
+  return E.autoModel;
+}
+
+async function readSheets({ engine, images, prompt, schema, model }) {
   const cli = await resolveCli(engine);
   if (!cli) throw new Error(`${engine === 'claude' ? 'Claude Code' : 'Antigravity CLI (agy)'} is not installed or not on PATH`);
   const E = ENGINES[engine];
@@ -91,14 +105,16 @@ async function readSheets({ engine, images, prompt, schema }) {
         '--system-prompt', 'You transcribe handwriting from cropped survey images. Read each image file you are given with the Read tool, then answer only with the requested JSON. Mark unsure readings.'];
     } else if (E.kind === 'agy') {
       const p = `${prompt}\n\nThe images are the PNG files in the current folder: ${names.map((n) => '@' + n).join(' ')}\nLook at every one of them. Do not run commands and do not write any files. Answer only with the JSON.`;
-      args = ['-p', p, '--output-format', 'json', '--json-schema', JSON.stringify(schema)];
+      args = ['-p', p, '--output-format', 'json', '--json-schema', JSON.stringify(schema), '--effort', 'low'];
+      const m = model || E.model || (await agyFastModel(cli)); if (m) args.push('--model', m);
     } else {
       const p = `${prompt}\n\nDo not use any tools and do not write files. Reply with ONLY one JSON object, no markdown, in exactly this shape:\n{"values":[{"id":"12n","value":"3","unsure":false}]}\n\nImages: ${names.map((n) => '@' + n).join(' ')}`;
       args = ['-p', p, '-o', 'json', '--skip-trust'];
     }
-    if (E.model) args.push(engine === 'gemini' && E.kind === 'gemini' ? '-m' : '--model', E.model);
+    if (engine === 'claude' && (model || E.model)) args.push('--model', model || E.model);
+    if (engine === 'gemini' && E.kind === 'gemini' && (model || E.model)) args.push('-m', model || E.model);
     const t0 = Date.now();
-    const r = await run(cli.cmd, [...cli.pre, ...args], dir);
+    const r = await run(cli.cmd, [...cli.pre, ...args], dir, { timeoutMs: 6 * 60 * 1000 });
     let j = null; try { j = JSON.parse(r.out); } catch (_) { j = extractJson(r.out); }
     if (!j) throw new Error((r.err || r.out || 'no output').trim().slice(-600));
     let result;
@@ -110,7 +126,7 @@ async function readSheets({ engine, images, prompt, schema }) {
       result = j.structured_output || extractJson(j.response);
       if (!result || !Array.isArray(result.values)) throw new Error('Gemini did not return the expected JSON: ' + String(j.response || '').slice(0, 300));
     }
-    console.log(`  ${engine}: read ${images.length} sheet(s) in ${((Date.now() - t0) / 1000).toFixed(0)} s`);
+    console.log(`  ${engine}${model ? ' (' + model + ')' : ''}: read ${images.length} sheet(s) in ${((Date.now() - t0) / 1000).toFixed(0)} s`);
     return result;
   } finally { rmSync(dir, { recursive: true, force: true }); }
 }
@@ -136,6 +152,16 @@ const server = http.createServer(async (req, res) => {
       const engines = {};
       for (const k of Object.keys(ENGINES)) engines[k] = (await resolveCli(k)) ? ENGINES[k].version || 'installed' : null;
       return send(res, 200, { ok: true, version: 2, engines });
+    }
+    if (req.method === 'GET' && req.url.startsWith('/models')) {
+      const engine = new URL(req.url, 'http://x').searchParams.get('engine');
+      if (engine === 'claude') return send(res, 200, { models: ['sonnet', 'opus', 'haiku'] });
+      const cli = await resolveCli('gemini');
+      if (!cli) return send(res, 200, { models: [] });
+      if (ENGINES.gemini.kind !== 'agy') return send(res, 200, { models: ['pro', 'flash'] });
+      const r = await run(cli.cmd, [...cli.pre, 'models'], tmpdir(), { timeoutMs: 60000 });
+      const models = [...new Set(r.out.split('\n').map((l) => (l.trim().match(/^[*>\-\s]*([a-z0-9][a-z0-9._-]*[a-z0-9])\b/i) || [])[1]).filter((m) => m && /\d|-/.test(m) && !/^(model|name|slug|id)s?$/i.test(m)))];
+      return send(res, 200, { models, raw: r.out.slice(0, 4000) });
     }
     if (req.method === 'POST' && req.url === '/read') {
       let body = ''; for await (const c of req) { body += c; if (body.length > 60e6) throw new Error('request too large'); }

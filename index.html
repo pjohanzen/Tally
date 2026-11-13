@@ -4,13 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>E-WACS Survey Encoder</title>
-<link rel="stylesheet" href="style.css?v=2026.11.13-5">
+<link rel="stylesheet" href="style.css?v=2026.11.13-7">
 </head>
 <body>
 <header>
   <h1>E-WACS Survey Encoder</h1>
   <p class="sub">Upload scanned survey PDFs → get a CSV / Excel file. Everything runs in this browser; your PDFs are never uploaded.</p>
-  <div id="libstatus" class="pill">Loading tools…</div> <span class="muted ver">version 2026.11.13-5</span>
+  <div id="libstatus" class="pill">Loading tools…</div> <span class="muted ver">version 2026.11.13-7</span>
 </header>
 
 <main>
@@ -28,6 +28,7 @@
       <div id="helperBox" class="sub-opt">
         <span id="helperStatus" class="pill">checking…</span>
         <button id="btnHelper" class="btn small">Check again</button>
+        <label class="muted modelpick">Model <select id="modelSel"><option value="">Default</option></select></label>
         <div class="cmd">
           <span class="muted">Before processing, paste this in Terminal (Mac) or PowerShell (Windows) and leave the window open:</span>
           <div class="cmdrow"><input id="helperCmd" spellcheck="false"><button id="btnCopyCmd" class="btn small primary">Copy</button><button id="btnResetCmd" class="btn small" title="Restore the default command">Reset</button></div>
@@ -76,6 +77,6 @@
 <script src="vendor/pdf.min.js"></script>
 <script src="vendor/xlsx.full.min.js"></script>
 <script src="vendor/opencv.js" async></script>
-<script src="app.js?v=2026.11.13-5"></script>
+<script src="app.js?v=2026.11.13-7"></script>
 </body>
 </html>
