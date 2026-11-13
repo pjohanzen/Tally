@@ -1,9 +1,9 @@
-/* E-WACS Survey Encoder — runs fully in the browser.
+/* Tally: scanned survey forms to spreadsheet. Runs fully in the browser.
  * Pipeline per PDF page: render (pdf.js) -> identify form page + align to template (OpenCV ORB + homography)
  * -> per-field local alignment (matchTemplate) -> checkboxes by ink count -> handwriting crops for the AI sheets.
  */
 'use strict';
-const APP_VERSION = '2026.11.13-10';
+const APP_VERSION = '2026.11.13-12';
 
 const CFG = {
   template: 'templates/ewacs-v1.json',
@@ -37,7 +37,7 @@ async function boot() {
     S.tpl = await (await fetch(CFG.template)).json();
     for (const p of S.tpl.pages) S.refs.push(await loadRef(p));
     S.ready = true;
-    setStatus(`Ready · template: ${S.tpl.name}`, 'ok');
+    setStatus('Ready', 'ok');
   } catch (e) {
     console.error(e);
     setStatus('Could not load the tools: ' + e.message + ' (open the page through GitHub Pages or a local web server, not by double-clicking the file)', 'err');
@@ -45,7 +45,7 @@ async function boot() {
   updateButtons();
   renderAll();
 }
-function setStatus(t, cls) { const el = $('libstatus'); el.textContent = t; el.className = 'pill ' + (cls || ''); }
+function setStatus(t, cls) { const el = $('libstatus'); el.textContent = t; el.className = 'status ' + (cls || ''); }
 
 async function loadRef(p) {
   const img = await loadImage(p.ref);
@@ -156,7 +156,7 @@ async function processFile(f) {
   const missing = mine.filter((s) => !s.blank && s.flags.some((x) => /^Missing form page/.test(x)));
   if (!real) f.issue = unknown.length ? `No E-WACS survey found (${unknown.length} page(s) did not match the form)` : 'No filled survey found (only blank pages)';
   else if (unknown.length) f.issue = `${unknown.length} page(s) did not match the form`;
-  f.status = `${real} survey${real === 1 ? '' : 's'}` + (blank ? ` · ${blank} blank skipped` : '') + (missing.length ? ' · pages missing' : '') + (unknown.length ? ` · ${unknown.length} page(s) not recognised` : '');
+  f.status = `${real} survey${real === 1 ? '' : 's'}` + (blank ? `, ${blank} blank skipped` : '') + (missing.length ? ', pages missing' : '') + (unknown.length ? `, ${unknown.length} page(s) not recognised` : '');
   f.cls = !real ? 'err' : unknown.length || mine.some((s) => !s.blank && s.flags.length) ? 'warn' : 'ok';
   f.done = true;
 }
@@ -297,7 +297,7 @@ function itemValue(it) {
   const v = String(it.value).trim();
   if (it.kind === 'count') return /^\d+$/.test(v) ? { v: Number(v), bad: !!it.flag, why: 'check the number' } : { v, bad: true, why: 'not a number' };
   if (it.kind === 'check') return { v: v === 'X', bad: !!it.flag, why: 'faint mark: ticked or not?' };
-  return { v, bad: !!it.flag, why: it.missed ? 'not returned by the AI' : v ? 'check spelling' : 'could not read' };
+  return { v, bad: !!it.flag, why: it.missed ? 'not returned by the AI' : !v ? 'could not read' : it.field === 'date' ? 'check the date' : 'check spelling' };
 }
 function checksFor(s, q) {
   const a = s.answers[q.id] || { on: [], unsure: {} };
@@ -451,13 +451,13 @@ const IS_WIN = /Win/i.test(navigator.platform || navigator.userAgent);
 function defaultHelperCmd() {
   const url = new URL('ai-helper.mjs', location.href).href;
   return IS_WIN
-    ? `irm ${url} -OutFile $HOME\\ewacs-ai-helper.mjs; node $HOME\\ewacs-ai-helper.mjs`
-    : `curl -fsSL ${url} -o ~/ewacs-ai-helper.mjs && node ~/ewacs-ai-helper.mjs`;
+    ? `irm ${url} -OutFile $HOME\\tally-helper.mjs; node $HOME\\tally-helper.mjs`
+    : `curl -fsSL ${url} -o ~/tally-helper.mjs && node ~/tally-helper.mjs`;
 }
 const settings = (() => {
   const d = { reader: 'claude', helperCmd: '', helperUrl: 'http://127.0.0.1:8787', barangays: '', surveyors: '', models: {} };
   let s; try { s = Object.assign(d, JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}')); } catch (e) { s = d; }
-  if (!s.helperCmd || /claude-helper\.mjs/.test(s.helperCmd)) s.helperCmd = defaultHelperCmd();
+  if (!s.helperCmd || /claude-helper\.mjs|ewacs-ai-helper\.mjs/.test(s.helperCmd)) s.helperCmd = defaultHelperCmd();
   if (!['claude', 'gemini', 'offline'].includes(s.reader)) s.reader = 'claude';
   delete s.geminiKey; delete s.geminiModel; if (!s.models || typeof s.models !== 'object') s.models = {};
   return s;
@@ -519,7 +519,7 @@ async function readWithHelper(engine, sheets, onStep) {
     const group = sheets.slice(i, i + per);
     const label = `Reading handwriting with ${name}: batch ${i / per + 1} of ${Math.ceil(sheets.length / per)}`, t0 = Date.now();
     onStep(label, done / sheets.length);
-    const timer = setInterval(() => onStep(`${label} · ${Math.round((Date.now() - t0) / 1000)} s`), 1000);
+    const timer = setInterval(() => onStep(`${label}, ${Math.round((Date.now() - t0) / 1000)} s`), 1000);
     let r, j;
     try {
       r = await fetch(settings.helperUrl + '/read', { method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -573,7 +573,7 @@ async function readHandwritingAI(items, prog) {
 function renderFiles() {
   const MAX = 300, list = S.files.length > MAX ? S.files.filter((f) => !f.done || f.cls !== 'ok').slice(0, MAX) : S.files;
   const done = S.files.filter((f) => f.done).length, warn = S.files.filter((f) => f.cls === 'warn' || f.cls === 'err').length;
-  $('fileCount').textContent = S.files.length ? `${S.files.length} PDF(s) · ${done} processed${warn ? ` · ${warn} need a look` : ''}${S.files.length > MAX ? ` (showing ${list.length})` : ''}` : '';
+  $('fileCount').textContent = S.files.length ? `${S.files.length} PDF(s), ${done} processed${warn ? `, ${warn} need a look` : ''}${S.files.length > MAX ? ` (showing ${list.length})` : ''}` : '';
   $('fileList').innerHTML = list.map((f) => `<li data-k="${esc(f.key)}"><span>${esc(f.name)}</span><span class="st ${f.cls || ''}">${esc(f.status || 'waiting')}</span></li>`).join('');
 }
 function renderFileStatus(f) {
@@ -587,6 +587,8 @@ function updateButtons() {
   const unread = Object.values(S.items).filter((it) => it.value === null).length;
   $('btnRetry').hidden = !(unread && !S.busy && settings.reader !== 'offline');
   $('btnClear').hidden = !S.files.length || S.busy;
+  $('bar').hidden = !S.busy && !S.surveys.length;
+  $('checkBox').hidden = !S.surveys.some((x) => !x.blank) || S.busy;
 }
 function renderResults() {
   if (S.busy || !S.surveys.some((s) => !s.blank)) { $('preview').innerHTML = ''; return; }
@@ -678,7 +680,7 @@ async function addFiles(list) {
     else skipped++;
   }
   const queued = S.files.filter((f) => !f.done).length;
-  $('progress').textContent = `Added ${added} PDF(s)${zips ? ` from ${zips} ZIP(s) and files` : ''}${skipped ? ` · skipped ${skipped} non-PDF file(s)` : ''}${errors.length ? ` · ${errors.join('; ')}` : ''} · ${queued} waiting to process.`;
+  $('progress').textContent = `Added ${added} PDF(s)${zips ? ` from ${zips} ZIP(s) and files` : ''}${skipped ? `. Skipped ${skipped} non-PDF file(s)` : ''}${errors.length ? `. ${errors.join('; ')}` : ''}. ${queued} waiting to process.`;
   renderFiles(); updateButtons();
 }
 const fromInput = (files) => [...files].map((f) => ({ file: f, path: f.webkitRelativePath || '' }));
@@ -721,7 +723,7 @@ async function processAll() {
     const t0 = performance.now();
     await readHandwriting(items, (k, n) => {
       const eta = k > 3 ? Math.round(((performance.now() - t0) / k) * (n - k) / 1000) : null;
-      prog(`Reading handwriting ${k} of ${n}${eta !== null ? ` · about ${eta < 90 ? eta + ' s' : Math.round(eta / 60) + ' min'} left` : ''}`, 0.5 + (k / n) * 0.5);
+      prog(`Reading handwriting ${k} of ${n}${eta !== null ? `, about ${eta < 90 ? eta + ' s' : Math.round(eta / 60) + ' min'} left` : ''}`, 0.5 + (k / n) * 0.5);
     });
   }
   const n = S.surveys.filter((s) => !s.blank).length;
@@ -750,12 +752,12 @@ function renderSettings() {
   if (settings.reader !== 'offline') checkHelper();
 }
 async function checkHelper() {
-  const el = $('helperStatus'); el.textContent = 'checking…'; el.className = 'pill';
+  const el = $('helperStatus'); el.textContent = 'Checking'; el.className = 'status';
   const h = await helperHealth(), name = settings.reader === 'claude' ? 'Claude Code' : 'Gemini (agy)';
-  if (!h.ok) { el.textContent = 'Helper not running'; el.className = 'pill err'; return; }
+  if (!h.ok) { el.textContent = 'Helper not running'; el.className = 'status err'; return; }
   const v = h.engines && h.engines[settings.reader];
-  el.textContent = v ? `Helper running · ${name} found` : `Helper running · ${name} not found`;
-  el.className = 'pill ' + (v ? 'ok' : 'err');
+  el.textContent = v ? `Running, ${name} found` : `Running, but ${name} not found`;
+  el.className = 'status ' + (v ? 'ok' : 'err');
   if (v) loadModels();
 }
 async function loadModels() {

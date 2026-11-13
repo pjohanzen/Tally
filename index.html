@@ -3,85 +3,111 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>E-WACS Survey Encoder</title>
-<link rel="icon" href="data:,">
-<link rel="stylesheet" href="style.css?v=2026.11.13-10">
+<title>Tally — scanned surveys to spreadsheet</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cg stroke='%232F5FD0' stroke-width='3' stroke-linecap='round'%3E%3Cpath d='M7 6v20M13 6v20M19 6v20M25 6v20M3 22 29 9'/%3E%3C/g%3E%3C/svg%3E">
+<link rel="stylesheet" href="style.css?v=2026.11.13-12">
 </head>
 <body>
-<header>
-  <h1>E-WACS Survey Encoder</h1>
-  <p class="sub">Upload scanned survey PDFs → get a CSV / Excel file. Everything runs in this browser; your PDFs are never uploaded.</p>
-  <div id="libstatus" class="pill">Loading tools…</div> <span class="muted ver">version 2026.11.13-10</span>
-</header>
-
-<main>
-  <section>
-    <h2><span class="num">1</span> Upload PDFs</h2>
-    <div id="drop" class="drop">
-      <p>Drop PDFs, ZIP files or whole folders here, or</p>
-      <label class="btn">Choose PDFs or ZIPs<input id="fileInput" type="file" accept=".pdf,.zip,application/pdf,application/zip" multiple hidden></label>
-      <label class="btn">Choose a folder<input id="folderInput" type="file" webkitdirectory multiple hidden></label>
+<div class="sheet">
+  <header class="masthead">
+    <div class="brand">
+      <svg class="mark" viewBox="0 0 32 32" aria-hidden="true"><g stroke-width="2.6" stroke-linecap="round"><path d="M7 6v20M13 6v20M19 6v20M25 6v20"/><path class="slash" d="M3 22 29 9"/></g></svg>
+      <h1>Tally</h1>
     </div>
-    <div class="reader">
-      <div class="rhead">Read handwriting with</div>
-      <label class="opt"><input type="radio" name="reader" value="claude"> <b>Claude</b> <span class="muted">your Claude Pro/Max subscription, through Claude Code</span></label>
-      <label class="opt"><input type="radio" name="reader" value="gemini"> <b>Gemini</b> <span class="muted">your Google AI Pro/Ultra subscription, through Antigravity CLI</span></label>
-      <label class="opt"><input type="radio" name="reader" value="offline"> <b>Offline</b> <span class="muted">no AI, nothing leaves the computer, much less accurate</span></label>
-      <div id="helperBox" class="sub-opt">
-        <span id="helperStatus" class="pill">checking…</span>
-        <button id="btnHelper" class="btn small">Check again</button>
-        <label class="muted modelpick">Model <select id="modelSel"><option value="">Default</option></select></label>
-        <div class="cmd">
-          <span class="muted">Before processing, paste this in Terminal (Mac) or PowerShell (Windows) and leave the window open:</span>
-          <div class="cmdrow"><input id="helperCmd" spellcheck="false"><button id="btnCopyCmd" class="btn small primary">Copy</button><button id="btnResetCmd" class="btn small" title="Restore the default command">Reset</button></div>
+    <p class="lede">Turns scanned, handwritten survey forms into a spreadsheet. Checkboxes are read on this computer; only the handwriting goes to the AI you choose.</p>
+    <div class="formline">
+      <span id="libstatus" class="status">Loading</span>
+      <span class="formname">Form: E-WACS Household Survey, Bacolod City</span>
+      <span class="ver">version 2026.11.13-12</span>
+    </div>
+  </header>
+
+  <main>
+    <section class="part">
+      <h2><span class="secno">1</span>Add scans</h2>
+      <div id="drop" class="field dropfield">
+        <span class="flabel">Scanned PDFs, ZIP files or folders</span>
+        <p class="droptext">Drop them here</p>
+        <div class="row tight">
+          <label class="btn">Choose PDFs or ZIPs<input id="fileInput" type="file" accept=".pdf,.zip,application/pdf,application/zip" multiple hidden></label>
+          <label class="btn">Choose a folder<input id="folderInput" type="file" webkitdirectory multiple hidden></label>
         </div>
       </div>
+      <div id="fileCount" class="count"></div>
+      <ul id="fileList" class="ledger"></ul>
+    </section>
+
+    <section class="part reader">
+      <h2><span class="secno">2</span>Read the handwriting with</h2>
+      <div class="choices" role="radiogroup" aria-label="Handwriting reader">
+        <label class="choice"><input type="radio" name="reader" value="claude"><span class="ctext"><b>Claude</b><span>Your Claude Pro or Max plan, through Claude Code</span></span></label>
+        <label class="choice"><input type="radio" name="reader" value="gemini"><span class="ctext"><b>Gemini</b><span>Your Google AI Pro or Ultra plan, through Antigravity CLI</span></span></label>
+        <label class="choice"><input type="radio" name="reader" value="offline"><span class="ctext"><b>Offline</b><span>No AI and nothing leaves this computer; names and some numbers will be wrong</span></span></label>
+      </div>
+
+      <div id="helperBox" class="field helper">
+        <span class="flabel">Helper on this computer</span>
+        <div class="row tight">
+          <span id="helperStatus" class="status">Checking</span>
+          <button id="btnHelper" class="btn small">Check again</button>
+          <label class="modelpick">Model <select id="modelSel"><option value="">Default</option></select></label>
+        </div>
+        <p class="hint">Before processing, run this in Terminal (Mac) or PowerShell (Windows) and keep the window open.</p>
+        <div class="cmdrow">
+          <input id="helperCmd" spellcheck="false" aria-label="Helper command">
+          <button id="btnCopyCmd" class="btn primary small">Copy</button>
+          <button id="btnResetCmd" class="btn small" title="Restore the default command">Reset</button>
+        </div>
+      </div>
+
       <details class="names">
-        <summary class="muted">Known names (optional, improves spelling)</summary>
+        <summary>Known names <span class="soft">optional, fixes spelling of barangays and surveyors</span></summary>
         <div class="two">
-          <label>Barangays / puroks, one per line<textarea id="listBarangays" placeholder="Prk. Katilingban I&#10;Brgy. Taculing"></textarea></label>
-          <label>Surveyors / enumerators, one per line<textarea id="listSurveyors" placeholder="Sufty Alba"></textarea></label>
+          <label class="field"><span class="flabel">Barangays and puroks, one per line</span><textarea id="listBarangays" placeholder="Prk. Katilingban I&#10;Brgy. Taculing"></textarea></label>
+          <label class="field"><span class="flabel">Surveyors, one per line</span><textarea id="listSurveyors" placeholder="Sufty Alba"></textarea></label>
         </div>
       </details>
-    </div>
-    <div class="row">
-      <button id="btnProcess" class="btn primary" disabled>Process PDFs</button>
-      <button id="btnRetry" class="btn" hidden>Read remaining handwriting</button>
-      <button id="btnClear" class="btn danger" hidden>Clear list</button>
-      <span id="progress" class="muted"></span>
-    </div>
-    <div class="bar"><div id="barFill"></div></div>
-    <div id="fileCount" class="muted"></div>
-    <ul id="fileList" class="filelist"></ul>
-  </section>
+    </section>
 
-  <section>
-    <h2><span class="num">2</span> Download</h2>
-    <p id="summary" class="muted">Results appear here after processing.</p>
-    <div class="row">
-      <button id="btnCsvR" class="btn primary" disabled>Download CSV</button>
-      <button id="btnXlsx" class="btn" disabled>Download Excel</button>
-      <button id="btnCsvD" class="btn" disabled>Devices CSV (long format)</button>
-    </div>
-    <div id="preview" class="preview"></div>
-    <details id="checkBox">
-      <summary>Check handwritten values <span id="checkCount" class="badge"></span></summary>
-      <p id="checkInfo" class="muted">Values the reader wasn't sure about, or that failed a check, are listed here next to the handwriting. Correct anything wrong and the downloads use your corrections. This step is optional.</p>
-      <div class="row"><label class="muted"><input type="checkbox" id="showAll"> Show all handwritten values</label></div>
-      <div id="review"></div>
-    </details>
-  </section>
+    <section class="part last">
+      <h2><span class="secno">3</span>Process and download</h2>
+      <div class="row">
+        <button id="btnProcess" class="btn primary big" disabled>Process PDFs</button>
+        <button id="btnRetry" class="btn" hidden>Read remaining handwriting</button>
+        <button id="btnClear" class="btn quiet" hidden>Clear list</button>
+      </div>
+      <div id="bar" class="bar" aria-hidden="true" hidden><div id="barFill"></div></div>
+      <p id="progress" class="progress" aria-live="polite"></p>
 
-  <section id="debug" hidden>
-    <h2>Debug: aligned pages</h2>
-    <div id="debugPages"></div>
-  </section>
-</main>
+      <p id="summary" class="summary">Results appear here after processing.</p>
+      <div class="row">
+        <button id="btnCsvR" class="btn primary" disabled>Download CSV</button>
+        <button id="btnXlsx" class="btn" disabled>Download Excel</button>
+        <button id="btnCsvD" class="btn" disabled>Devices CSV</button>
+      </div>
+      <div id="preview" class="preview"></div>
+
+      <details id="checkBox" class="check" hidden>
+        <summary>Check handwritten values <span id="checkCount" class="badge"></span></summary>
+        <p id="checkInfo" class="hint">Values the reader wasn't sure about, or that failed a check, are listed next to the handwriting. Corrections go straight into the downloads.</p>
+        <label class="inline"><input type="checkbox" id="showAll"> Show every handwritten value</label>
+        <div id="review"></div>
+      </details>
+    </section>
+
+    <section id="debug" class="part" hidden>
+      <h2>Aligned pages</h2>
+      <div id="debugPages"></div>
+    </section>
+  </main>
+
+  <footer class="foot">Your PDFs stay in this browser. Downloads are created on this computer.</footer>
+</div>
 
 <script src="vendor/pdf.min.js"></script>
 <script src="vendor/xlsx.full.min.js"></script>
 <script src="vendor/fflate.min.js"></script>
 <script src="vendor/opencv.js" async></script>
-<script src="app.js?v=2026.11.13-10"></script>
+<script src="app.js?v=2026.11.13-12"></script>
 </body>
 </html>

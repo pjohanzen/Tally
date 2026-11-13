@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// E-WACS Survey Encoder — AI helper.
+// Tally helper: lets the Tally web page use your own AI subscription.
 // Lets the web tool use YOUR AI subscription through the official command-line tools on this computer:
 //   • Claude  → Claude Code  (log in once with `claude`  using your Claude Pro/Max account)
 //   • Gemini  → Antigravity CLI `agy` (log in once with `agy` using your Google AI Pro/Ultra account).
@@ -91,7 +91,7 @@ async function readSheets({ engine, images, prompt, schema, model }) {
   const cli = await resolveCli(engine);
   if (!cli) throw new Error(`${engine === 'claude' ? 'Claude Code' : 'Antigravity CLI (agy)'} is not installed or not on PATH`);
   const E = ENGINES[engine];
-  const dir = mkdtempSync(join(tmpdir(), 'ewacs-'));
+  const dir = mkdtempSync(join(tmpdir(), 'tally-'));
   try {
     const names = images.map((b64, i) => {
       const n = `sheet-${String(i + 1).padStart(2, '0')}.png`;
@@ -187,7 +187,7 @@ server.on('error', (e) => {
   process.exit(1);
 });
 server.listen(PORT, '127.0.0.1', async () => {
-  console.log(`E-WACS AI helper running on http://127.0.0.1:${PORT}`);
+  console.log(`Tally helper running on http://127.0.0.1:${PORT}`);
   for (const k of Object.keys(ENGINES)) {
     const ok = await resolveCli(k);
     console.log(`  ${k === 'claude' ? 'Claude      ' : 'Gemini      '}: ${ok ? 'found ' + (ENGINES[k].version || '') : k === 'claude' ? 'Claude Code not found' : 'Antigravity CLI (agy) not found'}`);

@@ -1,6 +1,8 @@
-# E-WACS Survey Encoder
+# Tally
 
-Upload scanned, handwritten E-WACS survey PDFs and get a CSV / Excel file back.
+Scanned survey forms in, spreadsheet out. Currently set up for the **E-WACS Household Survey** (Bacolod City).
+
+Upload scanned, handwritten survey PDFs and get a CSV / Excel file back.
 
 - **Checkboxes:** read on your computer. No AI is used.
 - **Handwriting:** only small cut-outs of the handwritten boxes are sent to the AI you pick (Claude or Gemini, on your own subscription), never whole pages.
