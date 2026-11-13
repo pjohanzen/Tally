@@ -105,8 +105,12 @@ async function readSheets({ engine, images, prompt, schema, model }) {
         '--system-prompt', 'You transcribe handwriting from cropped survey images. Read each image file you are given with the Read tool, then answer only with the requested JSON. Mark unsure readings.'];
     } else if (E.kind === 'agy') {
       const p = `${prompt}\n\nThe images are the PNG files in the current folder: ${names.map((n) => '@' + n).join(' ')}\nLook at every one of them. Do not run commands and do not write any files. Answer only with the JSON.`;
-      args = ['-p', p, '--output-format', 'json', '--json-schema', JSON.stringify(schema), '--effort', 'low'];
-      const m = model || E.model || (await agyFastModel(cli)); if (m) args.push('--model', m);
+      args = ['-p', p, '--output-format', 'json', '--json-schema', JSON.stringify(schema)];
+      const m = model || E.model || (await agyFastModel(cli));
+      if (m) args.push('--model', m);
+      // Antigravity model names can carry their own effort (…-low / -medium / -high); only add --effort when they don't
+      // only for the helper's own automatic pick; a model you choose runs exactly as you chose it
+      if (!model && !E.model && (!m || !/-(low|medium|high|minimal|max)$/i.test(m))) args.push('--effort', 'low');
     } else {
       const p = `${prompt}\n\nDo not use any tools and do not write files. Reply with ONLY one JSON object, no markdown, in exactly this shape:\n{"values":[{"id":"12n","value":"3","unsure":false}]}\n\nImages: ${names.map((n) => '@' + n).join(' ')}`;
       args = ['-p', p, '-o', 'json', '--skip-trust'];

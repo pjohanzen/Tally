@@ -3,7 +3,7 @@
  * -> per-field local alignment (matchTemplate) -> checkboxes by ink count -> handwriting crops for the AI sheets.
  */
 'use strict';
-const APP_VERSION = '2026.11.13-7';
+const APP_VERSION = '2026.11.13-8';
 
 const CFG = {
   template: 'templates/ewacs-v1.json',
