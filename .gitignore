@@ -1,0 +1,8 @@
+# Never commit survey data
+*.pdf
+*.xlsx
+*.xls
+*.csv
+ewacs-session-*.json
+sheet-*.png
+.DS_Store

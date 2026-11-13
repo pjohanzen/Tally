@@ -1,0 +1,2922 @@
+{
+ "id": "ewacs-v1",
+ "name": "E-WACS Household Survey (Bacolod City)",
+ "refWidth": 1653,
+ "pages": [
+  {
+   "n": 1,
+   "ref": "templates/ewacs-v1/page1.png"
+  },
+  {
+   "n": 2,
+   "ref": "templates/ewacs-v1/page2.png"
+  },
+  {
+   "n": 3,
+   "ref": "templates/ewacs-v1/page3.png"
+  },
+  {
+   "n": 4,
+   "ref": "templates/ewacs-v1/page4.png"
+  },
+  {
+   "n": 5,
+   "ref": "templates/ewacs-v1/page5.png"
+  }
+ ],
+ "textFields": [
+  {
+   "id": "surveyor",
+   "label": "Surveyor / Enumerator Name",
+   "kind": "text",
+   "page": 1,
+   "anchor": [
+    175,
+    355,
+    480,
+    60
+   ],
+   "box": [
+    640,
+    330,
+    700,
+    92
+   ]
+  },
+  {
+   "id": "date",
+   "label": "Date",
+   "kind": "text",
+   "page": 1,
+   "anchor": [
+    175,
+    440,
+    100,
+    55
+   ],
+   "box": [
+    255,
+    428,
+    520,
+    70
+   ]
+  },
+  {
+   "id": "barangay",
+   "label": "Barangay / Purok / Subdivision",
+   "kind": "text",
+   "page": 1,
+   "anchor": [
+    175,
+    512,
+    510,
+    58
+   ],
+   "box": [
+    675,
+    492,
+    660,
+    82
+   ]
+  },
+  {
+   "id": "household_members",
+   "label": "Number of Household Members",
+   "kind": "count",
+   "page": 1,
+   "anchor": [
+    175,
+    745,
+    520,
+    55
+   ],
+   "box": [
+    690,
+    705,
+    260,
+    100
+   ]
+  },
+  {
+   "id": "s2_q2_other_text",
+   "label": "S2 Q2 Other (specify)",
+   "kind": "text",
+   "page": 3,
+   "anchor": [
+    365,
+    1288,
+    165,
+    62
+   ],
+   "box": [
+    525,
+    1285,
+    800,
+    70
+   ]
+  },
+  {
+   "id": "dev_smartphones_active",
+   "group": "devices",
+   "device": "smartphones",
+   "deviceLabel": "Smartphones / Cellphones",
+   "column": "active",
+   "kind": "count",
+   "page": 1,
+   "anchor": [
+    490,
+    1301,
+    276,
+    105
+   ],
+   "box": [
+    778,
+    1301,
+    182,
+    105
+   ]
+  },
+  {
+   "id": "dev_smartphones_broken",
+   "group": "devices",
+   "device": "smartphones",
+   "deviceLabel": "Smartphones / Cellphones",
+   "column": "broken",
+   "kind": "count",
+   "page": 1,
+   "anchor": [
+    490,
+    1301,
+    276,
+    105
+   ],
+   "box": [
+    976,
+    1301,
+    202,
+    105
+   ]
+  },
+  {
+   "id": "dev_smartphones_where",
+   "group": "devices",
+   "device": "smartphones",
+   "deviceLabel": "Smartphones / Cellphones",
+   "column": "where",
+   "kind": "text",
+   "page": 1,
+   "anchor": [
+    490,
+    1301,
+    276,
+    105
+   ],
+   "box": [
+    1194,
+    1301,
+    275,
+    105
+   ]
+  },
+  {
+   "id": "dev_tablets_laptops_active",
+   "group": "devices",
+   "device": "tablets_laptops",
+   "deviceLabel": "Tablets / Laptops / Desktops",
+   "column": "active",
+   "kind": "count",
+   "page": 1,
+   "anchor": [
+    490,
+    1418,
+    276,
+    144
+   ],
+   "box": [
+    778,
+    1418,
+    182,
+    144
+   ]
+  },
+  {
+   "id": "dev_tablets_laptops_broken",
+   "group": "devices",
+   "device": "tablets_laptops",
+   "deviceLabel": "Tablets / Laptops / Desktops",
+   "column": "broken",
+   "kind": "count",
+   "page": 1,
+   "anchor": [
+    490,
+    1418,
+    276,
+    144
+   ],
+   "box": [
+    976,
+    1418,
+    202,
+    144
+   ]
+  },
+  {
+   "id": "dev_tablets_laptops_where",
+   "group": "devices",
+   "device": "tablets_laptops",
+   "deviceLabel": "Tablets / Laptops / Desktops",
+   "column": "where",
+   "kind": "text",
+   "page": 1,
+   "anchor": [
+    490,
+    1418,
+    276,
+    144
+   ],
+   "box": [
+    1194,
+    1418,
+    275,
+    144
+   ]
+  },
+  {
+   "id": "dev_chargers_cables_active",
+   "group": "devices",
+   "device": "chargers_cables",
+   "deviceLabel": "Chargers, Power Banks, Cables",
+   "column": "active",
+   "kind": "count",
+   "page": 1,
+   "anchor": [
+    490,
+    1574,
+    276,
+    144
+   ],
+   "box": [
+    778,
+    1574,
+    182,
+    144
+   ]
+  },
+  {
+   "id": "dev_chargers_cables_broken",
+   "group": "devices",
+   "device": "chargers_cables",
+   "deviceLabel": "Chargers, Power Banks, Cables",
+   "column": "broken",
+   "kind": "count",
+   "page": 1,
+   "anchor": [
+    490,
+    1574,
+    276,
+    144
+   ],
+   "box": [
+    976,
+    1574,
+    202,
+    144
+   ]
+  },
+  {
+   "id": "dev_chargers_cables_where",
+   "group": "devices",
+   "device": "chargers_cables",
+   "deviceLabel": "Chargers, Power Banks, Cables",
+   "column": "where",
+   "kind": "text",
+   "page": 1,
+   "anchor": [
+    490,
+    1574,
+    276,
+    144
+   ],
+   "box": [
+    1194,
+    1574,
+    275,
+    144
+   ]
+  },
+  {
+   "id": "dev_refrigerators_active",
+   "group": "devices",
+   "device": "refrigerators",
+   "deviceLabel": "Refrigerators / Freezers",
+   "column": "active",
+   "kind": "count",
+   "page": 1,
+   "anchor": [
+    490,
+    1730,
+    276,
+    105
+   ],
+   "box": [
+    778,
+    1730,
+    182,
+    105
+   ]
+  },
+  {
+   "id": "dev_refrigerators_broken",
+   "group": "devices",
+   "device": "refrigerators",
+   "deviceLabel": "Refrigerators / Freezers",
+   "column": "broken",
+   "kind": "count",
+   "page": 1,
+   "anchor": [
+    490,
+    1730,
+    276,
+    105
+   ],
+   "box": [
+    976,
+    1730,
+    202,
+    105
+   ]
+  },
+  {
+   "id": "dev_refrigerators_where",
+   "group": "devices",
+   "device": "refrigerators",
+   "deviceLabel": "Refrigerators / Freezers",
+   "column": "where",
+   "kind": "text",
+   "page": 1,
+   "anchor": [
+    490,
+    1730,
+    276,
+    105
+   ],
+   "box": [
+    1194,
+    1730,
+    275,
+    105
+   ]
+  },
+  {
+   "id": "dev_air_conditioners_active",
+   "group": "devices",
+   "device": "air_conditioners",
+   "deviceLabel": "Air Conditioners",
+   "column": "active",
+   "kind": "count",
+   "page": 1,
+   "anchor": [
+    490,
+    1847,
+    276,
+    101
+   ],
+   "box": [
+    778,
+    1847,
+    182,
+    101
+   ]
+  },
+  {
+   "id": "dev_air_conditioners_broken",
+   "group": "devices",
+   "device": "air_conditioners",
+   "deviceLabel": "Air Conditioners",
+   "column": "broken",
+   "kind": "count",
+   "page": 1,
+   "anchor": [
+    490,
+    1847,
+    276,
+    101
+   ],
+   "box": [
+    976,
+    1847,
+    202,
+    101
+   ]
+  },
+  {
+   "id": "dev_air_conditioners_where",
+   "group": "devices",
+   "device": "air_conditioners",
+   "deviceLabel": "Air Conditioners",
+   "column": "where",
+   "kind": "text",
+   "page": 1,
+   "anchor": [
+    490,
+    1847,
+    276,
+    101
+   ],
+   "box": [
+    1194,
+    1847,
+    275,
+    101
+   ]
+  },
+  {
+   "id": "dev_washing_machines_active",
+   "group": "devices",
+   "device": "washing_machines",
+   "deviceLabel": "Washing Machines",
+   "column": "active",
+   "kind": "count",
+   "page": 2,
+   "anchor": [
+    490,
+    513,
+    276,
+    106
+   ],
+   "box": [
+    778,
+    513,
+    182,
+    106
+   ]
+  },
+  {
+   "id": "dev_washing_machines_broken",
+   "group": "devices",
+   "device": "washing_machines",
+   "deviceLabel": "Washing Machines",
+   "column": "broken",
+   "kind": "count",
+   "page": 2,
+   "anchor": [
+    490,
+    513,
+    276,
+    106
+   ],
+   "box": [
+    976,
+    513,
+    202,
+    106
+   ]
+  },
+  {
+   "id": "dev_washing_machines_where",
+   "group": "devices",
+   "device": "washing_machines",
+   "deviceLabel": "Washing Machines",
+   "column": "where",
+   "kind": "text",
+   "page": 2,
+   "anchor": [
+    490,
+    513,
+    276,
+    106
+   ],
+   "box": [
+    1194,
+    513,
+    275,
+    106
+   ]
+  },
+  {
+   "id": "dev_flat_tvs_active",
+   "group": "devices",
+   "device": "flat_tvs",
+   "deviceLabel": "Flat Screen TVs (LED/LCD)",
+   "column": "active",
+   "kind": "count",
+   "page": 2,
+   "anchor": [
+    490,
+    631,
+    276,
+    143
+   ],
+   "box": [
+    778,
+    631,
+    182,
+    143
+   ]
+  },
+  {
+   "id": "dev_flat_tvs_broken",
+   "group": "devices",
+   "device": "flat_tvs",
+   "deviceLabel": "Flat Screen TVs (LED/LCD)",
+   "column": "broken",
+   "kind": "count",
+   "page": 2,
+   "anchor": [
+    490,
+    631,
+    276,
+    143
+   ],
+   "box": [
+    976,
+    631,
+    202,
+    143
+   ]
+  },
+  {
+   "id": "dev_flat_tvs_where",
+   "group": "devices",
+   "device": "flat_tvs",
+   "deviceLabel": "Flat Screen TVs (LED/LCD)",
+   "column": "where",
+   "kind": "text",
+   "page": 2,
+   "anchor": [
+    490,
+    631,
+    276,
+    143
+   ],
+   "box": [
+    1194,
+    631,
+    275,
+    143
+   ]
+  },
+  {
+   "id": "dev_crt_tvs_active",
+   "group": "devices",
+   "device": "crt_tvs",
+   "deviceLabel": "Bulky CRT TVs / Old Monitors",
+   "column": "active",
+   "kind": "count",
+   "page": 2,
+   "anchor": [
+    490,
+    786,
+    276,
+    106
+   ],
+   "box": [
+    778,
+    786,
+    182,
+    106
+   ]
+  },
+  {
+   "id": "dev_crt_tvs_broken",
+   "group": "devices",
+   "device": "crt_tvs",
+   "deviceLabel": "Bulky CRT TVs / Old Monitors",
+   "column": "broken",
+   "kind": "count",
+   "page": 2,
+   "anchor": [
+    490,
+    786,
+    276,
+    106
+   ],
+   "box": [
+    976,
+    786,
+    202,
+    106
+   ]
+  },
+  {
+   "id": "dev_crt_tvs_where",
+   "group": "devices",
+   "device": "crt_tvs",
+   "deviceLabel": "Bulky CRT TVs / Old Monitors",
+   "column": "where",
+   "kind": "text",
+   "page": 2,
+   "anchor": [
+    490,
+    786,
+    276,
+    106
+   ],
+   "box": [
+    1194,
+    786,
+    275,
+    106
+   ]
+  },
+  {
+   "id": "dev_audio_active",
+   "group": "devices",
+   "device": "audio",
+   "deviceLabel": "Audio Systems / Radios / Players",
+   "column": "active",
+   "kind": "count",
+   "page": 2,
+   "anchor": [
+    490,
+    904,
+    276,
+    142
+   ],
+   "box": [
+    778,
+    904,
+    182,
+    142
+   ]
+  },
+  {
+   "id": "dev_audio_broken",
+   "group": "devices",
+   "device": "audio",
+   "deviceLabel": "Audio Systems / Radios / Players",
+   "column": "broken",
+   "kind": "count",
+   "page": 2,
+   "anchor": [
+    490,
+    904,
+    276,
+    142
+   ],
+   "box": [
+    976,
+    904,
+    202,
+    142
+   ]
+  },
+  {
+   "id": "dev_audio_where",
+   "group": "devices",
+   "device": "audio",
+   "deviceLabel": "Audio Systems / Radios / Players",
+   "column": "where",
+   "kind": "text",
+   "page": 2,
+   "anchor": [
+    490,
+    904,
+    276,
+    142
+   ],
+   "box": [
+    1194,
+    904,
+    275,
+    142
+   ]
+  },
+  {
+   "id": "dev_electric_fans_active",
+   "group": "devices",
+   "device": "electric_fans",
+   "deviceLabel": "Electric Fans",
+   "column": "active",
+   "kind": "count",
+   "page": 2,
+   "anchor": [
+    490,
+    1058,
+    276,
+    106
+   ],
+   "box": [
+    778,
+    1058,
+    182,
+    106
+   ]
+  },
+  {
+   "id": "dev_electric_fans_broken",
+   "group": "devices",
+   "device": "electric_fans",
+   "deviceLabel": "Electric Fans",
+   "column": "broken",
+   "kind": "count",
+   "page": 2,
+   "anchor": [
+    490,
+    1058,
+    276,
+    106
+   ],
+   "box": [
+    976,
+    1058,
+    202,
+    106
+   ]
+  },
+  {
+   "id": "dev_electric_fans_where",
+   "group": "devices",
+   "device": "electric_fans",
+   "deviceLabel": "Electric Fans",
+   "column": "where",
+   "kind": "text",
+   "page": 2,
+   "anchor": [
+    490,
+    1058,
+    276,
+    106
+   ],
+   "box": [
+    1194,
+    1058,
+    275,
+    106
+   ]
+  },
+  {
+   "id": "dev_microwave_ricecookers_active",
+   "group": "devices",
+   "device": "microwave_ricecookers",
+   "deviceLabel": "Microwave Ovens / Rice Cookers",
+   "column": "active",
+   "kind": "count",
+   "page": 2,
+   "anchor": [
+    490,
+    1176,
+    276,
+    141
+   ],
+   "box": [
+    778,
+    1176,
+    182,
+    141
+   ]
+  },
+  {
+   "id": "dev_microwave_ricecookers_broken",
+   "group": "devices",
+   "device": "microwave_ricecookers",
+   "deviceLabel": "Microwave Ovens / Rice Cookers",
+   "column": "broken",
+   "kind": "count",
+   "page": 2,
+   "anchor": [
+    490,
+    1176,
+    276,
+    141
+   ],
+   "box": [
+    976,
+    1176,
+    202,
+    141
+   ]
+  },
+  {
+   "id": "dev_microwave_ricecookers_where",
+   "group": "devices",
+   "device": "microwave_ricecookers",
+   "deviceLabel": "Microwave Ovens / Rice Cookers",
+   "column": "where",
+   "kind": "text",
+   "page": 2,
+   "anchor": [
+    490,
+    1176,
+    276,
+    141
+   ],
+   "box": [
+    1194,
+    1176,
+    275,
+    141
+   ]
+  },
+  {
+   "id": "dev_blenders_kettles_active",
+   "group": "devices",
+   "device": "blenders_kettles",
+   "deviceLabel": "Blenders / Electric Kettles",
+   "column": "active",
+   "kind": "count",
+   "page": 2,
+   "anchor": [
+    490,
+    1329,
+    276,
+    108
+   ],
+   "box": [
+    778,
+    1329,
+    182,
+    108
+   ]
+  },
+  {
+   "id": "dev_blenders_kettles_broken",
+   "group": "devices",
+   "device": "blenders_kettles",
+   "deviceLabel": "Blenders / Electric Kettles",
+   "column": "broken",
+   "kind": "count",
+   "page": 2,
+   "anchor": [
+    490,
+    1329,
+    276,
+    108
+   ],
+   "box": [
+    976,
+    1329,
+    202,
+    108
+   ]
+  },
+  {
+   "id": "dev_blenders_kettles_where",
+   "group": "devices",
+   "device": "blenders_kettles",
+   "deviceLabel": "Blenders / Electric Kettles",
+   "column": "where",
+   "kind": "text",
+   "page": 2,
+   "anchor": [
+    490,
+    1329,
+    276,
+    108
+   ],
+   "box": [
+    1194,
+    1329,
+    275,
+    108
+   ]
+  },
+  {
+   "id": "dev_batteries_active",
+   "group": "devices",
+   "device": "batteries",
+   "deviceLabel": "AA / AAA / Rechargeable Batteries",
+   "column": "active",
+   "kind": "count",
+   "page": 2,
+   "anchor": [
+    490,
+    1449,
+    276,
+    142
+   ],
+   "box": [
+    778,
+    1449,
+    182,
+    142
+   ]
+  },
+  {
+   "id": "dev_batteries_broken",
+   "group": "devices",
+   "device": "batteries",
+   "deviceLabel": "AA / AAA / Rechargeable Batteries",
+   "column": "broken",
+   "kind": "count",
+   "page": 2,
+   "anchor": [
+    490,
+    1449,
+    276,
+    142
+   ],
+   "box": [
+    976,
+    1449,
+    202,
+    142
+   ]
+  },
+  {
+   "id": "dev_batteries_where",
+   "group": "devices",
+   "device": "batteries",
+   "deviceLabel": "AA / AAA / Rechargeable Batteries",
+   "column": "where",
+   "kind": "text",
+   "page": 2,
+   "anchor": [
+    490,
+    1449,
+    276,
+    142
+   ],
+   "box": [
+    1194,
+    1449,
+    275,
+    142
+   ]
+  },
+  {
+   "id": "dev_others_active",
+   "group": "devices",
+   "device": "others",
+   "deviceLabel": "OTHERS",
+   "column": "active",
+   "kind": "count",
+   "page": 2,
+   "anchor": [
+    195,
+    1603,
+    280,
+    331
+   ],
+   "box": [
+    778,
+    1603,
+    182,
+    331
+   ]
+  },
+  {
+   "id": "dev_others_broken",
+   "group": "devices",
+   "device": "others",
+   "deviceLabel": "OTHERS",
+   "column": "broken",
+   "kind": "count",
+   "page": 2,
+   "anchor": [
+    195,
+    1603,
+    280,
+    331
+   ],
+   "box": [
+    976,
+    1603,
+    202,
+    331
+   ]
+  },
+  {
+   "id": "dev_others_where",
+   "group": "devices",
+   "device": "others",
+   "deviceLabel": "OTHERS",
+   "column": "where",
+   "kind": "text",
+   "page": 2,
+   "anchor": [
+    195,
+    1603,
+    280,
+    331
+   ],
+   "box": [
+    1194,
+    1603,
+    275,
+    331
+   ]
+  },
+  {
+   "id": "dev_others_name",
+   "group": "devices",
+   "device": "others",
+   "deviceLabel": "OTHERS",
+   "column": "name",
+   "kind": "text",
+   "page": 2,
+   "anchor": [
+    195,
+    1603,
+    280,
+    331
+   ],
+   "box": [
+    491,
+    1603,
+    274,
+    331
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "id": "respondent_type",
+   "label": "Respondent Type",
+   "kind": "single",
+   "page": 1,
+   "options": [
+    {
+     "value": "Head of Household",
+     "box": [
+      476,
+      583,
+      44,
+      60
+     ],
+     "inner": [
+      489,
+      607,
+      15,
+      28
+     ],
+     "above": [
+      476,
+      569,
+      98,
+      32
+     ],
+     "gap": [
+      510,
+      601,
+      10,
+      40
+     ],
+     "anchor": [
+      429,
+      579,
+      420,
+      70
+     ],
+     "line": [
+      469,
+      577,
+      560,
+      74
+     ]
+    },
+    {
+     "value": "Spouse",
+     "box": [
+      807,
+      583,
+      44,
+      60
+     ],
+     "inner": [
+      820,
+      607,
+      15,
+      28
+     ],
+     "above": [
+      807,
+      569,
+      98,
+      32
+     ],
+     "gap": [
+      841,
+      601,
+      10,
+      40
+     ],
+     "anchor": [
+      760,
+      579,
+      420,
+      70
+     ],
+     "line": [
+      800,
+      577,
+      560,
+      74
+     ]
+    },
+    {
+     "value": "Adult Family Member",
+     "box": [
+      967,
+      583,
+      44,
+      60
+     ],
+     "inner": [
+      980,
+      607,
+      15,
+      28
+     ],
+     "above": [
+      967,
+      569,
+      98,
+      32
+     ],
+     "gap": [
+      1001,
+      601,
+      10,
+      40
+     ],
+     "anchor": [
+      920,
+      579,
+      420,
+      70
+     ],
+     "line": [
+      960,
+      577,
+      560,
+      74
+     ]
+    }
+   ]
+  },
+  {
+   "id": "housing_type",
+   "label": "Housing Type",
+   "kind": "single",
+   "page": 1,
+   "options": [
+    {
+     "value": "Single-detached",
+     "box": [
+      417,
+      656,
+      44,
+      60
+     ],
+     "inner": [
+      430,
+      680,
+      15,
+      28
+     ],
+     "above": [
+      417,
+      642,
+      98,
+      32
+     ],
+     "gap": [
+      451,
+      674,
+      10,
+      40
+     ],
+     "anchor": [
+      370,
+      652,
+      420,
+      70
+     ],
+     "line": [
+      410,
+      650,
+      560,
+      74
+     ]
+    },
+    {
+     "value": "Townhouse/Rowhouse",
+     "box": [
+      704,
+      656,
+      44,
+      60
+     ],
+     "inner": [
+      717,
+      680,
+      15,
+      28
+     ],
+     "above": [
+      704,
+      642,
+      98,
+      32
+     ],
+     "gap": [
+      738,
+      674,
+      10,
+      40
+     ],
+     "anchor": [
+      657,
+      652,
+      420,
+      70
+     ],
+     "line": [
+      697,
+      650,
+      560,
+      74
+     ]
+    },
+    {
+     "value": "Apartment/Condo",
+     "box": [
+      1089,
+      656,
+      44,
+      60
+     ],
+     "inner": [
+      1102,
+      680,
+      15,
+      28
+     ],
+     "above": [
+      1089,
+      642,
+      98,
+      32
+     ],
+     "gap": [
+      1123,
+      674,
+      10,
+      40
+     ],
+     "anchor": [
+      1042,
+      652,
+      420,
+      70
+     ],
+     "line": [
+      1082,
+      650,
+      560,
+      74
+     ]
+    }
+   ]
+  },
+  {
+   "id": "s2_q1_first_action",
+   "label": "S2 Q1 First course of action when a device stops working",
+   "kind": "single",
+   "page": 3,
+   "options": [
+    {
+     "value": "Repair technician",
+     "box": [
+      374,
+      340,
+      44,
+      60
+     ],
+     "inner": [
+      387,
+      364,
+      15,
+      28
+     ],
+     "above": [
+      374,
+      326,
+      98,
+      32
+     ],
+     "gap": [
+      408,
+      358,
+      10,
+      40
+     ],
+     "anchor": [
+      327,
+      336,
+      420,
+      70
+     ],
+     "line": [
+      367,
+      334,
+      560,
+      74
+     ]
+    },
+    {
+     "value": "DIY repair",
+     "box": [
+      374,
+      416,
+      44,
+      60
+     ],
+     "inner": [
+      387,
+      440,
+      15,
+      28
+     ],
+     "above": [
+      374,
+      402,
+      98,
+      32
+     ],
+     "gap": [
+      408,
+      434,
+      10,
+      40
+     ],
+     "anchor": [
+      327,
+      412,
+      420,
+      70
+     ],
+     "line": [
+      367,
+      410,
+      560,
+      74
+     ]
+    },
+    {
+     "value": "Store indefinitely",
+     "box": [
+      374,
+      492,
+      44,
+      60
+     ],
+     "inner": [
+      387,
+      516,
+      15,
+      28
+     ],
+     "above": [
+      374,
+      478,
+      98,
+      32
+     ],
+     "gap": [
+      408,
+      510,
+      10,
+      40
+     ],
+     "anchor": [
+      327,
+      488,
+      420,
+      70
+     ],
+     "line": [
+      367,
+      486,
+      560,
+      74
+     ]
+    },
+    {
+     "value": "Sell immediately",
+     "box": [
+      374,
+      568,
+      44,
+      60
+     ],
+     "inner": [
+      387,
+      592,
+      15,
+      28
+     ],
+     "above": [
+      374,
+      554,
+      98,
+      32
+     ],
+     "gap": [
+      408,
+      586,
+      10,
+      40
+     ],
+     "anchor": [
+      327,
+      564,
+      420,
+      70
+     ],
+     "line": [
+      367,
+      562,
+      560,
+      74
+     ]
+    },
+    {
+     "value": "Throw out with regular garbage",
+     "box": [
+      374,
+      645,
+      44,
+      60
+     ],
+     "inner": [
+      387,
+      669,
+      15,
+      28
+     ],
+     "above": [
+      374,
+      631,
+      98,
+      32
+     ],
+     "gap": [
+      408,
+      663,
+      10,
+      40
+     ],
+     "anchor": [
+      327,
+      641,
+      420,
+      70
+     ],
+     "line": [
+      367,
+      639,
+      560,
+      74
+     ]
+    }
+   ]
+  },
+  {
+   "id": "s2_q2_disposal",
+   "label": "S2 Q2 How disposed in past 2-3 years (check all)",
+   "kind": "multi",
+   "page": 3,
+   "options": [
+    {
+     "value": "Informal collectors / bote-bakal",
+     "box": [
+      373,
+      836,
+      44,
+      60
+     ],
+     "inner": [
+      386,
+      860,
+      15,
+      28
+     ],
+     "above": [
+      373,
+      822,
+      98,
+      32
+     ],
+     "gap": [
+      407,
+      854,
+      10,
+      40
+     ],
+     "anchor": [
+      326,
+      832,
+      420,
+      70
+     ],
+     "line": [
+      366,
+      830,
+      560,
+      74
+     ]
+    },
+    {
+     "value": "Local junkshop for cash",
+     "box": [
+      373,
+      950,
+      44,
+      60
+     ],
+     "inner": [
+      386,
+      974,
+      15,
+      28
+     ],
+     "above": [
+      373,
+      936,
+      98,
+      32
+     ],
+     "gap": [
+      407,
+      968,
+      10,
+      40
+     ],
+     "anchor": [
+      326,
+      946,
+      420,
+      70
+     ],
+     "line": [
+      366,
+      944,
+      560,
+      74
+     ]
+    },
+    {
+     "value": "Given away to relatives/helpers",
+     "box": [
+      374,
+      1025,
+      44,
+      60
+     ],
+     "inner": [
+      387,
+      1049,
+      15,
+      28
+     ],
+     "above": [
+      374,
+      1011,
+      98,
+      32
+     ],
+     "gap": [
+      408,
+      1043,
+      10,
+      40
+     ],
+     "anchor": [
+      327,
+      1021,
+      420,
+      70
+     ],
+     "line": [
+      367,
+      1019,
+      560,
+      74
+     ]
+    },
+    {
+     "value": "Mixed into household trash",
+     "box": [
+      374,
+      1100,
+      44,
+      60
+     ],
+     "inner": [
+      387,
+      1124,
+      15,
+      28
+     ],
+     "above": [
+      374,
+      1086,
+      98,
+      32
+     ],
+     "gap": [
+      408,
+      1118,
+      10,
+      40
+     ],
+     "anchor": [
+      327,
+      1096,
+      420,
+      70
+     ],
+     "line": [
+      367,
+      1094,
+      560,
+      74
+     ]
+    },
+    {
+     "value": "Kept in storage",
+     "box": [
+      374,
+      1216,
+      44,
+      60
+     ],
+     "inner": [
+      387,
+      1240,
+      15,
+      28
+     ],
+     "above": [
+      374,
+      1202,
+      98,
+      32
+     ],
+     "gap": [
+      408,
+      1234,
+      10,
+      40
+     ],
+     "anchor": [
+      327,
+      1212,
+      420,
+      70
+     ],
+     "line": [
+      367,
+      1210,
+      560,
+      74
+     ]
+    },
+    {
+     "value": "Other",
+     "box": [
+      374,
+      1289,
+      44,
+      60
+     ],
+     "inner": [
+      387,
+      1313,
+      15,
+      28
+     ],
+     "above": [
+      374,
+      1275,
+      98,
+      32
+     ],
+     "gap": [
+      408,
+      1307,
+      10,
+      40
+     ],
+     "anchor": [
+      327,
+      1285,
+      420,
+      70
+     ],
+     "line": [
+      367,
+      1283,
+      560,
+      74
+     ]
+    }
+   ]
+  },
+  {
+   "id": "s2_q3_reason_storing",
+   "label": "S2 Q3 Main reason for not disposing",
+   "kind": "single",
+   "page": 3,
+   "options": [
+    {
+     "value": "Just in case / parts",
+     "box": [
+      374,
+      1481,
+      44,
+      60
+     ],
+     "inner": [
+      387,
+      1505,
+      15,
+      28
+     ],
+     "above": [
+      374,
+      1467,
+      98,
+      32
+     ],
+     "gap": [
+      408,
+      1499,
+      10,
+      40
+     ],
+     "anchor": [
+      327,
+      1477,
+      420,
+      70
+     ],
+     "line": [
+      367,
+      1475,
+      560,
+      74
+     ]
+    },
+    {
+     "value": "Sentimental / data privacy",
+     "box": [
+      373,
+      1557,
+      44,
+      60
+     ],
+     "inner": [
+      386,
+      1581,
+      15,
+      28
+     ],
+     "above": [
+      373,
+      1543,
+      98,
+      32
+     ],
+     "gap": [
+      407,
+      1575,
+      10,
+      40
+     ],
+     "anchor": [
+      326,
+      1553,
+      420,
+      70
+     ],
+     "line": [
+      366,
+      1551,
+      560,
+      74
+     ]
+    },
+    {
+     "value": "Don't know where/how",
+     "box": [
+      374,
+      1671,
+      44,
+      60
+     ],
+     "inner": [
+      387,
+      1695,
+      15,
+      28
+     ],
+     "above": [
+      374,
+      1657,
+      98,
+      32
+     ],
+     "gap": [
+      408,
+      1689,
+      10,
+      40
+     ],
+     "anchor": [
+      327,
+      1667,
+      420,
+      70
+     ],
+     "line": [
+      367,
+      1665,
+      560,
+      74
+     ]
+    },
+    {
+     "value": "Buyers offered too little",
+     "box": [
+      373,
+      1747,
+      44,
+      60
+     ],
+     "inner": [
+      386,
+      1771,
+      15,
+      28
+     ],
+     "above": [
+      373,
+      1733,
+      98,
+      32
+     ],
+     "gap": [
+      407,
+      1765,
+      10,
+      40
+     ],
+     "anchor": [
+      326,
+      1743,
+      420,
+      70
+     ],
+     "line": [
+      366,
+      1741,
+      560,
+      74
+     ]
+    },
+    {
+     "value": "Too heavy/bulky to transport",
+     "box": [
+      373,
+      1823,
+      44,
+      60
+     ],
+     "inner": [
+      386,
+      1847,
+      15,
+      28
+     ],
+     "above": [
+      373,
+      1809,
+      98,
+      32
+     ],
+     "gap": [
+      407,
+      1841,
+      10,
+      40
+     ],
+     "anchor": [
+      326,
+      1819,
+      420,
+      70
+     ],
+     "line": [
+      366,
+      1817,
+      560,
+      74
+     ]
+    }
+   ]
+  },
+  {
+   "id": "s3_q1_awareness",
+   "label": "S3 Q1 Aware electronics contain toxic materials",
+   "kind": "single",
+   "page": 4,
+   "options": [
+    {
+     "value": "Yes, fully aware",
+     "box": [
+      375,
+      375,
+      44,
+      60
+     ],
+     "inner": [
+      388,
+      399,
+      15,
+      28
+     ],
+     "above": [
+      375,
+      361,
+      98,
+      32
+     ],
+     "gap": [
+      409,
+      393,
+      10,
+      40
+     ],
+     "anchor": [
+      328,
+      371,
+      420,
+      70
+     ],
+     "line": [
+      368,
+      369,
+      560,
+      74
+     ]
+    },
+    {
+     "value": "Somewhat aware",
+     "box": [
+      375,
+      452,
+      44,
+      60
+     ],
+     "inner": [
+      388,
+      476,
+      15,
+      28
+     ],
+     "above": [
+      375,
+      438,
+      98,
+      32
+     ],
+     "gap": [
+      409,
+      470,
+      10,
+      40
+     ],
+     "anchor": [
+      328,
+      448,
+      420,
+      70
+     ],
+     "line": [
+      368,
+      446,
+      560,
+      74
+     ]
+    },
+    {
+     "value": "No, not aware",
+     "box": [
+      375,
+      529,
+      44,
+      60
+     ],
+     "inner": [
+      388,
+      553,
+      15,
+      28
+     ],
+     "above": [
+      375,
+      515,
+      98,
+      32
+     ],
+     "gap": [
+      409,
+      547,
+      10,
+      40
+     ],
+     "anchor": [
+      328,
+      525,
+      420,
+      70
+     ],
+     "line": [
+      368,
+      523,
+      560,
+      74
+     ]
+    }
+   ]
+  },
+  {
+   "id": "s3_q2_open_burning",
+   "label": "S3 Q2 Open burning of wires/plastics",
+   "kind": "single",
+   "page": 4,
+   "options": [
+    {
+     "value": "Yes",
+     "box": [
+      1098,
+      713,
+      44,
+      60
+     ],
+     "inner": [
+      1111,
+      737,
+      15,
+      28
+     ],
+     "above": [
+      1098,
+      699,
+      98,
+      32
+     ],
+     "gap": [
+      1132,
+      731,
+      10,
+      40
+     ],
+     "anchor": [
+      1051,
+      709,
+      420,
+      70
+     ],
+     "line": [
+      1091,
+      707,
+      560,
+      74
+     ]
+    },
+    {
+     "value": "No",
+     "box": [
+      1202,
+      713,
+      44,
+      60
+     ],
+     "inner": [
+      1215,
+      737,
+      15,
+      28
+     ],
+     "above": [
+      1202,
+      699,
+      98,
+      32
+     ],
+     "gap": [
+      1236,
+      731,
+      10,
+      40
+     ],
+     "anchor": [
+      1155,
+      709,
+      420,
+      70
+     ],
+     "line": [
+      1195,
+      707,
+      560,
+      74
+     ]
+    }
+   ]
+  },
+  {
+   "id": "s3_q2_breaking_crt",
+   "label": "S3 Q2 Breaking open CRT screens/battery packs",
+   "kind": "single",
+   "page": 4,
+   "options": [
+    {
+     "value": "Yes",
+     "box": [
+      1059,
+      795,
+      44,
+      60
+     ],
+     "inner": [
+      1072,
+      819,
+      15,
+      28
+     ],
+     "above": [
+      1059,
+      781,
+      98,
+      32
+     ],
+     "gap": [
+      1093,
+      813,
+      10,
+      40
+     ],
+     "anchor": [
+      1012,
+      791,
+      420,
+      70
+     ],
+     "line": [
+      1052,
+      789,
+      560,
+      74
+     ]
+    },
+    {
+     "value": "No",
+     "box": [
+      1163,
+      795,
+      44,
+      60
+     ],
+     "inner": [
+      1176,
+      819,
+      15,
+      28
+     ],
+     "above": [
+      1163,
+      781,
+      98,
+      32
+     ],
+     "gap": [
+      1197,
+      813,
+      10,
+      40
+     ],
+     "anchor": [
+      1116,
+      791,
+      420,
+      70
+     ],
+     "line": [
+      1156,
+      789,
+      560,
+      74
+     ]
+    }
+   ]
+  },
+  {
+   "id": "s3_q2_dumping",
+   "label": "S3 Q2 Dumping scrap along vacant lots/waterways",
+   "kind": "single",
+   "page": 4,
+   "options": [
+    {
+     "value": "Yes",
+     "box": [
+      1252,
+      872,
+      44,
+      60
+     ],
+     "inner": [
+      1265,
+      896,
+      15,
+      28
+     ],
+     "above": [
+      1252,
+      858,
+      98,
+      32
+     ],
+     "gap": [
+      1286,
+      890,
+      10,
+      40
+     ],
+     "anchor": [
+      1205,
+      868,
+      420,
+      70
+     ],
+     "line": [
+      1245,
+      866,
+      560,
+      74
+     ]
+    },
+    {
+     "value": "No",
+     "box": [
+      1356,
+      872,
+      44,
+      60
+     ],
+     "inner": [
+      1369,
+      896,
+      15,
+      28
+     ],
+     "above": [
+      1356,
+      858,
+      98,
+      32
+     ],
+     "gap": [
+      1390,
+      890,
+      10,
+      40
+     ],
+     "anchor": [
+      1309,
+      868,
+      420,
+      70
+     ],
+     "line": [
+      1349,
+      866,
+      560,
+      74
+     ]
+    }
+   ]
+  },
+  {
+   "id": "s4_q1_participate",
+   "label": "S4 Q1 Would participate in E-WACS drop-off",
+   "kind": "single",
+   "page": 4,
+   "options": [
+    {
+     "value": "Yes, definitely",
+     "box": [
+      375,
+      1106,
+      44,
+      60
+     ],
+     "inner": [
+      388,
+      1130,
+      15,
+      28
+     ],
+     "above": [
+      375,
+      1092,
+      98,
+      32
+     ],
+     "gap": [
+      409,
+      1124,
+      10,
+      40
+     ],
+     "anchor": [
+      328,
+      1102,
+      420,
+      70
+     ],
+     "line": [
+      368,
+      1100,
+      560,
+      74
+     ]
+    },
+    {
+     "value": "Maybe",
+     "box": [
+      375,
+      1182,
+      44,
+      60
+     ],
+     "inner": [
+      388,
+      1206,
+      15,
+      28
+     ],
+     "above": [
+      375,
+      1168,
+      98,
+      32
+     ],
+     "gap": [
+      409,
+      1200,
+      10,
+      40
+     ],
+     "anchor": [
+      328,
+      1178,
+      420,
+      70
+     ],
+     "line": [
+      368,
+      1176,
+      560,
+      74
+     ]
+    },
+    {
+     "value": "No",
+     "box": [
+      375,
+      1258,
+      44,
+      60
+     ],
+     "inner": [
+      388,
+      1282,
+      15,
+      28
+     ],
+     "above": [
+      375,
+      1244,
+      98,
+      32
+     ],
+     "gap": [
+      409,
+      1276,
+      10,
+      40
+     ],
+     "anchor": [
+      328,
+      1254,
+      420,
+      70
+     ],
+     "line": [
+      368,
+      1252,
+      560,
+      74
+     ]
+    }
+   ]
+  },
+  {
+   "id": "s4_q2_incentive",
+   "label": "S4 Q2 Incentive model",
+   "kind": "multi",
+   "page": 4,
+   "options": [
+    {
+     "value": "Direct cash payout",
+     "box": [
+      375,
+      1447,
+      44,
+      60
+     ],
+     "inner": [
+      388,
+      1471,
+      15,
+      28
+     ],
+     "above": [
+      375,
+      1433,
+      98,
+      32
+     ],
+     "gap": [
+      409,
+      1465,
+      10,
+      40
+     ],
+     "anchor": [
+      328,
+      1443,
+      420,
+      70
+     ],
+     "line": [
+      368,
+      1441,
+      560,
+      74
+     ]
+    },
+    {
+     "value": "Vouchers/coupons/discounts",
+     "box": [
+      375,
+      1523,
+      44,
+      60
+     ],
+     "inner": [
+      388,
+      1547,
+      15,
+      28
+     ],
+     "above": [
+      375,
+      1509,
+      98,
+      32
+     ],
+     "gap": [
+      409,
+      1541,
+      10,
+      40
+     ],
+     "anchor": [
+      328,
+      1519,
+      420,
+      70
+     ],
+     "line": [
+      368,
+      1517,
+      560,
+      74
+     ]
+    },
+    {
+     "value": "Free certified data wiping",
+     "box": [
+      375,
+      1599,
+      44,
+      60
+     ],
+     "inner": [
+      388,
+      1623,
+      15,
+      28
+     ],
+     "above": [
+      375,
+      1585,
+      98,
+      32
+     ],
+     "gap": [
+      409,
+      1617,
+      10,
+      40
+     ],
+     "anchor": [
+      328,
+      1595,
+      420,
+      70
+     ],
+     "line": [
+      368,
+      1593,
+      560,
+      74
+     ]
+    },
+    {
+     "value": "None needed",
+     "box": [
+      375,
+      1713,
+      44,
+      60
+     ],
+     "inner": [
+      388,
+      1737,
+      15,
+      28
+     ],
+     "above": [
+      375,
+      1699,
+      98,
+      32
+     ],
+     "gap": [
+      409,
+      1731,
+      10,
+      40
+     ],
+     "anchor": [
+      328,
+      1709,
+      420,
+      70
+     ],
+     "line": [
+      368,
+      1707,
+      560,
+      74
+     ]
+    }
+   ]
+  },
+  {
+   "id": "s4_q3_dropoff_location",
+   "label": "S4 Q3 Most convenient drop-off location",
+   "kind": "multi",
+   "page": 5,
+   "options": [
+    {
+     "value": "Barangay Hall / MRF",
+     "box": [
+      379,
+      257,
+      44,
+      60
+     ],
+     "inner": [
+      392,
+      281,
+      15,
+      28
+     ],
+     "above": [
+      379,
+      243,
+      98,
+      32
+     ],
+     "gap": [
+      413,
+      275,
+      10,
+      40
+     ],
+     "anchor": [
+      332,
+      253,
+      420,
+      70
+     ],
+     "line": [
+      372,
+      251,
+      560,
+      74
+     ]
+    },
+    {
+     "value": "Bins in shopping malls",
+     "box": [
+      379,
+      333,
+      44,
+      60
+     ],
+     "inner": [
+      392,
+      357,
+      15,
+      28
+     ],
+     "above": [
+      379,
+      319,
+      98,
+      32
+     ],
+     "gap": [
+      413,
+      351,
+      10,
+      40
+     ],
+     "anchor": [
+      332,
+      329,
+      420,
+      70
+     ],
+     "line": [
+      372,
+      327,
+      560,
+      74
+     ]
+    },
+    {
+     "value": "Accredited local junkshops",
+     "box": [
+      379,
+      410,
+      44,
+      60
+     ],
+     "inner": [
+      392,
+      434,
+      15,
+      28
+     ],
+     "above": [
+      379,
+      396,
+      98,
+      32
+     ],
+     "gap": [
+      413,
+      428,
+      10,
+      40
+     ],
+     "anchor": [
+      332,
+      406,
+      420,
+      70
+     ],
+     "line": [
+      372,
+      404,
+      560,
+      74
+     ]
+    },
+    {
+     "value": "Academic institutions",
+     "box": [
+      379,
+      486,
+      44,
+      60
+     ],
+     "inner": [
+      392,
+      510,
+      15,
+      28
+     ],
+     "above": [
+      379,
+      472,
+      98,
+      32
+     ],
+     "gap": [
+      413,
+      504,
+      10,
+      40
+     ],
+     "anchor": [
+      332,
+      482,
+      420,
+      70
+     ],
+     "line": [
+      372,
+      480,
+      560,
+      74
+     ]
+    },
+    {
+     "value": "Scheduled curbside pick-up",
+     "box": [
+      380,
+      562,
+      44,
+      60
+     ],
+     "inner": [
+      393,
+      586,
+      15,
+      28
+     ],
+     "above": [
+      380,
+      548,
+      98,
+      32
+     ],
+     "gap": [
+      414,
+      580,
+      10,
+      40
+     ],
+     "anchor": [
+      333,
+      558,
+      420,
+      70
+     ],
+     "line": [
+      373,
+      556,
+      560,
+      74
+     ]
+    }
+   ]
+  },
+  {
+   "id": "s4_q4_distance",
+   "label": "S4 Q4 Maximum travel distance",
+   "kind": "single",
+   "page": 5,
+   "options": [
+    {
+     "value": "Walking distance (<500 m)",
+     "box": [
+      380,
+      755,
+      44,
+      60
+     ],
+     "inner": [
+      393,
+      779,
+      15,
+      28
+     ],
+     "above": [
+      380,
+      741,
+      98,
+      32
+     ],
+     "gap": [
+      414,
+      773,
+      10,
+      40
+     ],
+     "anchor": [
+      333,
+      751,
+      420,
+      70
+     ],
+     "line": [
+      373,
+      749,
+      560,
+      74
+     ]
+    },
+    {
+     "value": "Within the Barangay (1-2 km)",
+     "box": [
+      380,
+      830,
+      44,
+      60
+     ],
+     "inner": [
+      393,
+      854,
+      15,
+      28
+     ],
+     "above": [
+      380,
+      816,
+      98,
+      32
+     ],
+     "gap": [
+      414,
+      848,
+      10,
+      40
+     ],
+     "anchor": [
+      333,
+      826,
+      420,
+      70
+     ],
+     "line": [
+      373,
+      824,
+      560,
+      74
+     ]
+    },
+    {
+     "value": "Anywhere in city center (5+ km)",
+     "box": [
+      380,
+      905,
+      44,
+      60
+     ],
+     "inner": [
+      393,
+      929,
+      15,
+      28
+     ],
+     "above": [
+      380,
+      891,
+      98,
+      32
+     ],
+     "gap": [
+      414,
+      923,
+      10,
+      40
+     ],
+     "anchor": [
+      333,
+      901,
+      420,
+      70
+     ],
+     "line": [
+      373,
+      899,
+      560,
+      74
+     ]
+    }
+   ]
+  }
+ ]
+}
