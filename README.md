@@ -2,7 +2,8 @@
 
 Scanned survey forms in, spreadsheet out. Currently set up for the **E-WACS Household Survey** (Bacolod City).
 
-**Open the tool:** https://pjohanzen.github.io/pdf-tool/
+**Open the tool:** https://pjohanzen.github.io/Tally/
+**Repository:** https://github.com/pjohanzen/Tally
 
 - **Checkboxes:** read on your own computer. No AI is used for them.
 - **Handwriting:** only small cut-outs of the handwritten boxes go to the AI you choose (Claude or Gemini, on your own subscription), never whole pages.
@@ -11,57 +12,120 @@ Scanned survey forms in, spreadsheet out. Currently set up for the **E-WACS Hous
 
 ---
 
+## Requirements
+
+| You need | Why |
+|---|---|
+| Google Chrome or Microsoft Edge (tested in Chrome) | Runs the tool |
+| **Node.js 18 or newer** | Runs the small helper that connects Tally to your AI |
+| **One** AI subscription: Claude Pro/Max **or** Google AI Pro/Ultra | Reads the handwriting. Not needed for Offline mode, which is much less accurate. |
+| Windows 10 (1809+) / 11, macOS 13+, or Linux (Ubuntu 20.04+, Debian 10+, Fedora/RHEL, Alpine) | What Claude Code supports; Antigravity CLI runs on Windows, macOS and Linux |
+
+Where to type the commands below:
+- **Windows:** open **PowerShell** (Start menu → type "PowerShell"). The prompt starts with `PS C:\`.
+- **macOS:** open **Terminal** (Spotlight → type "Terminal").
+- **Linux:** open your **Terminal** app.
+
+---
+
 ## Setup (once per computer)
 
-Pick one reader: **Claude** if you have Claude Pro/Max, **Gemini** if you have Google AI Pro/Ultra. You only need one of them.
+### Step 1: Install Node.js
 
-### Step 1: Install Node.js (everyone)
+First check whether you already have it:
+```
+node -v
+```
+A version of `v18` or higher means you can skip to Step 2.
 
-The small helper that connects Tally to your AI runs on Node.js.
+**Windows (PowerShell):**
+```powershell
+winget install OpenJS.NodeJS.LTS
+```
 
-1. Check whether you already have it. Open **Terminal** (Mac) or **PowerShell** (Windows) and run:
-   ```
-   node -v
-   ```
-   A version of `v18` or higher means you're done with this step.
-2. If not, install the **LTS** version from https://nodejs.org. On a Mac with Homebrew you can run `brew install node` instead. Then close and reopen Terminal/PowerShell.
+**macOS:** with [Homebrew](https://brew.sh):
+```bash
+brew install node
+```
+No Homebrew? Download the macOS installer (`.pkg`, **LTS**) from https://nodejs.org/en/download and run it.
+
+**Linux, Ubuntu / Debian:**
+```bash
+curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash -
+sudo apt-get install -y nodejs
+```
+
+**Linux, Fedora:**
+```bash
+sudo dnf install nodejs
+```
+
+**Linux, Arch:**
+```bash
+sudo pacman -S nodejs npm
+```
+
+Then **close and reopen** PowerShell/Terminal and run `node -v` again to confirm.
 
 ### Step 2a: If you use Claude
 
-1. Install Claude Code by following https://code.claude.com.
-2. In Terminal/PowerShell, run:
+Your Claude account must be on **Pro or Max**. The free plan doesn't include Claude Code.
+
+1. Install Claude Code.
+
+   **Windows (PowerShell):**
+   ```powershell
+   irm https://claude.ai/install.ps1 | iex
+   ```
+
+   **macOS and Linux:**
+   ```bash
+   curl -fsSL https://claude.ai/install.sh | bash
+   ```
+
+2. Close and reopen PowerShell/Terminal, then check it installed:
+   ```
+   claude --version
+   ```
+
+3. Log in once:
    ```
    claude
    ```
-   Log in with **the Claude account that has your Pro or Max plan**, then type `/exit` to quit.
+   Follow the browser prompt and sign in with **the Claude account that has your Pro or Max plan**. When it's done, type `/exit`.
 
 ### Step 2b: If you use Gemini
 
-Gemini is reached through **Antigravity CLI**, Google's replacement for Gemini CLI. The old Gemini CLI no longer accepts personal accounts.
+Your Google account must be on **Google AI Pro or Ultra**. Gemini is reached through **Antigravity CLI** (`agy`), which replaced Gemini CLI for personal accounts. The old `gemini` command no longer accepts personal sign-ins.
 
-1. Install it.
-   - **Mac:**
-     ```
-     curl -fsSL https://antigravity.google/cli/install.sh | bash
-     ```
-   - **Windows (PowerShell):**
-     ```
-     irm https://antigravity.google/cli/install.ps1 | iex
-     ```
-   Then close and reopen Terminal/PowerShell.
-2. Run:
+1. Install Antigravity CLI.
+
+   **Windows (PowerShell):**
+   ```powershell
+   irm https://antigravity.google/cli/install.ps1 | iex
+   ```
+
+   **macOS and Linux:**
+   ```bash
+   curl -fsSL https://antigravity.google/cli/install.sh | bash
+   ```
+
+2. Close and reopen PowerShell/Terminal, then sign in once:
    ```
    agy
    ```
    Sign in with **the Google account that has your Google AI Pro or Ultra plan**, then exit.
 
-### Step 3: Check it works
+### Step 3: Connect Tally to your AI
 
-1. Open https://pjohanzen.github.io/pdf-tool/ in Chrome or Edge.
+1. Open https://pjohanzen.github.io/Tally/.
 2. Under **Read the handwriting with**, tick **Claude** or **Gemini**.
-3. In the **Helper on this computer** box, click **Copy**, paste it into Terminal/PowerShell, and press Enter. The window should list your AI as **found**.
-4. The first time, the browser may ask to let the site access **devices on your local network**. Click **Allow**, because that's how the page reaches the helper.
-5. The status in the tool turns green: **Running, Claude Code found** or **Running, Gemini (agy) found**.
+3. In the **Helper on this computer** box, click **Copy**. The command is already set for your system:
+   - **Windows:** `irm … -OutFile $HOME\tally-helper.mjs; node $HOME\tally-helper.mjs`
+   - **macOS / Linux:** `curl -fsSL … -o ~/tally-helper.mjs && node ~/tally-helper.mjs`
+4. Paste it into PowerShell/Terminal and press Enter. The window should say your AI was **found**.
+5. The first time, the browser may ask to let the site access **devices on your local network**. Click **Allow**, because that's how the page reaches the helper.
+6. The status in Tally turns green: **Running, Claude Code found** or **Running, Gemini (agy) found**.
 
 Setup is done.
 
@@ -69,13 +133,15 @@ Setup is done.
 
 ## Using Tally (every batch)
 
-1. **Start the helper.** Open Tally, click **Copy** in the helper box, paste it into Terminal/PowerShell, and press Enter. Leave that window open until you're finished. (Not needed for **Offline**.)
+1. **Start the helper.** Open Tally, click **Copy** in the helper box, paste it into PowerShell/Terminal, and press Enter. Keep that window open until you're finished. (Not needed for **Offline**.)
 2. **Add scans.** Drop in PDFs, **ZIP files** (folders inside are fine) or a **whole folder**, or use the **Choose** buttons. Other file types are skipped.
 3. **Optional: Known names.** List the barangays/puroks and surveyor names, one per line. Readings are matched to these exact spellings, numbers are never changed (Barangay 12 stays 12), and anything that doesn't match is flagged.
 4. **Optional: Model.** Choose which model reads the handwriting. **Default** is fine for most batches.
 5. Click **Process PDFs**. About 3 seconds per survey to read the pages, plus the AI time.
 6. Click **Download CSV** (or **Download Excel**).
 7. **Optional: Check handwritten values.** Anything the AI was unsure about, or that failed a check (a count that isn't a number, a date that isn't a date, a name not on your list), is shown next to the handwriting. Your fixes go straight into the downloads.
+
+To stop the helper when you're done, click its window and press **Ctrl+C**.
 
 Tips:
 - **Big batches:** 50–100 PDFs at a time is comfortable. 500 works too: about 30 minutes for the pages, plus AI time.
@@ -90,13 +156,16 @@ Tips:
 
 | What you see | What to do |
 |---|---|
-| **Helper not running** | Click **Copy**, paste into Terminal/PowerShell, press Enter, keep the window open, then click **Check again**. |
-| **Running, but Claude Code / Gemini (agy) not found** | Finish Step 2a or 2b, close and reopen Terminal/PowerShell, then run the Copy command again. |
-| `node: command not found` | Do Step 1, then reopen Terminal/PowerShell. |
+| **Helper not running** | Click **Copy**, paste into PowerShell/Terminal, press Enter, keep the window open, then click **Check again**. |
+| **Running, but Claude Code / Gemini (agy) not found** | Finish Step 2a or 2b, close and reopen PowerShell/Terminal, then run the Copy command again. |
+| `node` / `claude` / `agy` **is not recognized** or **command not found** | The install didn't finish or the window is too old. Close and reopen PowerShell/Terminal. If it still fails, repeat that install step. |
+| Windows: **running scripts is disabled on this system** | In PowerShell run `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`, answer **Y**, then retry. |
+| Windows: **winget is not recognized** | Install **App Installer** from the Microsoft Store, or download the Node.js LTS `.msi` from https://nodejs.org/en/download. |
+| Linux: **permission denied** during the Node.js install | Make sure you typed `sudo`, and enter your computer password when asked. |
 | Helper says **already running on port 8787** | One is already open in another window; use that one or close it. |
 | Gemini error **"This client is no longer supported…"** | That's the old Gemini CLI. Install Antigravity CLI (Step 2b). |
 | **Usage limit reached** | Wait for your plan's limit to reset, then click **Read remaining handwriting**. |
-| Page still shows an old version | Press **Cmd+Shift+R** (Mac) or **Ctrl+Shift+R** (Windows). The version number is at the top right. |
+| Page still shows an old version | Press **Ctrl+Shift+R** (Windows/Linux) or **Cmd+Shift+R** (Mac). The version number is at the top right. |
 | A PDF is listed as **could not open** or **no E-WACS survey found** | Re-scan it; that file is listed in the Review sheet. |
 
 ---
@@ -126,8 +195,20 @@ A dash written in a count cell becomes `0`. An empty cell stays empty.
 
 ### Publishing changes (GitHub Pages)
 
-The site is served from the `main` branch of `pjohanzen/pdf-tool` (Settings → Pages → Deploy from a branch → `main` / root).
+The site is served from the `main` branch of [pjohanzen/Tally](https://github.com/pjohanzen/Tally) (Settings → Pages → Deploy from a branch → `main` / root) at https://pjohanzen.github.io/Tally/.
 
+Clone it:
+```bash
+git clone https://github.com/pjohanzen/Tally.git
+cd Tally
+```
+
+If you already have a local copy from before the rename, point it at the new address:
+```bash
+git remote set-url origin https://github.com/pjohanzen/Tally.git
+```
+
+Publish a change:
 ```bash
 git add . && git commit -m "Describe the change" && git push
 ```
@@ -135,8 +216,9 @@ git add . && git commit -m "Describe the change" && git push
 - **Version bump:** change the version in `app.js` (`APP_VERSION`) and in `index.html` (the `?v=` on the CSS and JS links, and the version label) whenever you change code. Otherwise browsers keep the old copy for up to 10 minutes.
 - **Survey data:** never commit survey PDFs or exported files. `.gitignore` already blocks `*.pdf`, `*.xlsx`, `*.csv` and session files.
 - **Free accounts:** GitHub Free only serves Pages from **public** repos. The repo holds no survey data, so that's fine.
+- **Repo renames:** the site address changes with the repo name. Tally rewrites saved helper commands that point at an old address automatically.
 
-To run it locally instead: `python3 -m http.server` in this folder, then open http://localhost:8000. Double-clicking `index.html` doesn't work, because browsers block it from loading its own files.
+To run it locally instead: `python3 -m http.server` in this folder (Windows: `py -m http.server`), then open http://localhost:8000. Double-clicking `index.html` doesn't work, because browsers block it from loading its own files.
 
 ### How it works
 

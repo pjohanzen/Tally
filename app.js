@@ -3,7 +3,7 @@
  * -> per-field local alignment (matchTemplate) -> checkboxes by ink count -> handwriting crops for the AI sheets.
  */
 'use strict';
-const APP_VERSION = '2026.11.13-12';
+const APP_VERSION = '2026.11.13-13';
 
 const CFG = {
   template: 'templates/ewacs-v1.json',
@@ -457,7 +457,8 @@ function defaultHelperCmd() {
 const settings = (() => {
   const d = { reader: 'claude', helperCmd: '', helperUrl: 'http://127.0.0.1:8787', barangays: '', surveyors: '', models: {} };
   let s; try { s = Object.assign(d, JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}')); } catch (e) { s = d; }
-  if (!s.helperCmd || /claude-helper\.mjs|ewacs-ai-helper\.mjs/.test(s.helperCmd)) s.helperCmd = defaultHelperCmd();
+  // reset saved commands that point at an old file name or an old site address (e.g. after the repo was renamed)
+  if (!s.helperCmd || /claude-helper\.mjs|ewacs-ai-helper\.mjs/.test(s.helperCmd) || ((s.helperCmd.match(/https?:\/\/\S*ai-helper\.mjs/) || [])[0] || new URL('ai-helper.mjs', location.href).href) !== new URL('ai-helper.mjs', location.href).href) s.helperCmd = defaultHelperCmd();
   if (!['claude', 'gemini', 'offline'].includes(s.reader)) s.reader = 'claude';
   delete s.geminiKey; delete s.geminiModel; if (!s.models || typeof s.models !== 'object') s.models = {};
   return s;
