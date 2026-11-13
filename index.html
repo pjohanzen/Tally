@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Tally — scanned surveys to spreadsheet</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cg stroke='%232F5FD0' stroke-width='3' stroke-linecap='round'%3E%3Cpath d='M7 6v20M13 6v20M19 6v20M25 6v20M3 22 29 9'/%3E%3C/g%3E%3C/svg%3E">
-<link rel="stylesheet" href="style.css?v=2026.11.13-16">
+<link rel="stylesheet" href="style.css?v=2026.11.13-17">
 </head>
 <body>
 <div class="sheet">
@@ -18,7 +18,7 @@
     <div class="formline">
       <span id="libstatus" class="status">Loading</span>
       <span id="formName" class="formname"></span>
-      <span class="ver">version 2026.11.13-16</span>
+      <span class="ver">version 2026.11.13-17</span>
     </div>
   </header>
 
@@ -126,10 +126,10 @@
       <button id="bClose" class="btn small">Close</button>
     </div>
     <div id="bStart" class="bbody">
-      <p class="hint">Upload a <b>blank</b> copy of the survey form, scanned or exported as PDF. Tally finds the checkboxes, write-in lines and empty table cells, asks your AI to name them, and then you check the result.</p>
+      <p class="hint">Upload a copy of the survey form as PDF. A blank copy works best, but a filled-in one is fine. Tally finds the checkboxes, write-in lines and empty table cells, asks your AI to name them, and then you check the result.</p>
       <label class="field"><span class="flabel">Form name</span><input id="bName" class="plain" placeholder="e.g. Barangay Health Survey 2027"></label>
       <div class="row">
-        <label class="btn primary">Choose blank PDF<input id="bFile" type="file" accept=".pdf,application/pdf" hidden></label>
+        <label class="btn primary">Choose PDF<input id="bFile" type="file" accept=".pdf,application/pdf" hidden></label>
         <label class="inline"><input type="checkbox" id="bUseAI" checked> Name the fields with my AI (needs the helper running)</label>
       </div>
       <p id="bProgress" class="progress"></p>
@@ -138,6 +138,7 @@
       <div class="btools">
         <div id="bPages" class="tabs" role="tablist"></div>
         <label class="inline"><input type="checkbox" id="bDraw"> Draw a missing box</label>
+        <button id="bName2" class="btn small" type="button">Name with AI</button>
         <span id="bStats" class="hint"></span>
       </div>
       <div class="bgrid">
@@ -158,7 +159,7 @@
 <script src="vendor/xlsx.full.min.js"></script>
 <script src="vendor/fflate.min.js"></script>
 <script src="vendor/opencv.js" async></script>
-<script src="app.js?v=2026.11.13-16"></script>
-<script src="builder.js?v=2026.11.13-16"></script>
+<script src="app.js?v=2026.11.13-17"></script>
+<script src="builder.js?v=2026.11.13-17"></script>
 </body>
 </html>

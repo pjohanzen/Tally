@@ -157,17 +157,18 @@ Tips:
 
 Tally comes with the E-WACS form built in, and you can teach it any other paper form in a few minutes.
 
-1. **Get a blank copy** of the form as a PDF: scan an unfilled form, or export the original document to PDF.
+1. **Get a copy** of the form as a PDF. A blank one (an unfilled scan, or the original document exported to PDF) works best, but a filled-in survey is fine: Tally blanks out the answer areas so the sample's handwriting isn't mistaken for print.
 2. In Tally, step 1 **Choose the form**: click **New form from a blank PDF**, or **Import a form** and pick the PDF. Give it a name if asked.
 3. Tally finds the answer areas on every page:
    - checkboxes, printed as `[ ]` or as small squares
    - write-in lines (`Name: ________`)
    - empty table cells
-4. If the helper is running, your AI (Claude or Gemini) names each box, e.g. "Housing type: Townhouse" or "Smartphones: active count", and marks boxes that aren't answers as **Ignore**.
+4. **Start the helper first** (step 3 on the main page). Your AI (Claude or Gemini) then names each box, e.g. "Housing type: Townhouse" or "Smartphones: active count", and marks boxes that aren't answers as **Ignore**.
 5. **Check every page** in the editor:
    - Click a box (or its row in the list) to change its type: checkbox, number, text or ignore.
    - Edit its question, and for checkboxes the option text. Checkboxes with the same question become one column.
    - Click **Delete** for wrong boxes.
+   - If the boxes came out unnamed (helper wasn't running), start the helper and click **Name with AI**. Unnamed checkboxes still work: each tick is recorded as 1/0.
    - Tick **Draw a missing box** and drag on the page to add one.
 6. **Save form.** It becomes the active form and is remembered in this browser. **Edit** and **Delete** appear next to it.
 

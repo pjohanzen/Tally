@@ -55,19 +55,32 @@ function detectPage(gray) {
     // stroke side: a "[" has its full-height stroke on the left, a "]" on the right
     let left = 0, right = 0;
     for (let yy = y; yy < y + h; yy++) { if (bin.ucharPtr(yy, x)[0] || bin.ucharPtr(yy, x + 1)[0]) left++; if (bin.ucharPtr(yy, x + w - 1)[0] || bin.ucharPtr(yy, x + w - 2)[0]) right++; }
-    const type = left > 0.8 * h && right < 0.45 * h ? '[' : right > 0.8 * h && left < 0.45 * h ? ']' : null;
+    let type = left > 0.8 * h && right < 0.45 * h ? '[' : right > 0.8 * h && left < 0.45 * h ? ']' : null;
+    if (type) {
+      const openX = type === '[' ? x + w - 1 : x;                 // the side away from the stroke
+      const at = (yy) => bin.ucharPtr(yy, openX)[0] || bin.ucharPtr(yy, type === '[' ? openX - 1 : openX + 1)[0];
+      let top = 0, bot = 0, mid = 0;
+      for (let k = 0; k < 4; k++) { if (at(y + k)) top = 1; if (at(y + h - 1 - k)) bot = 1; }
+      for (let yy = y + Math.round(h * 0.3); yy < y + Math.round(h * 0.7); yy++) if (at(yy)) mid++;
+      if (!top || !bot || mid > 1) type = null;
+    }
     if (type) comps.push({ type, x, y, w, h });
   }
   lab.delete(); st.delete(); cen.delete();
   const opens = comps.filter((c) => c.type === '['), closes = comps.filter((c) => c.type === ']');
+  const usedClose = new Set(), pairs = [];
   for (const o of opens) {
-    const c = closes.filter((k) => k.x > o.x + o.w + 4 && k.x - (o.x + o.w) < 32 && Math.abs(k.y - o.y) < 7 && Math.abs(k.h - o.h) < 8)
+    const c = closes.filter((k) => !usedClose.has(k) && k.x > o.x + o.w + 4 && k.x - (o.x + o.w) < 32 && Math.abs(k.y - o.y) < 7 && Math.abs(k.h - o.h) < 8)
       .sort((a, b) => a.x - b.x)[0];
     if (!c) continue;
+    usedClose.add(c); o.paired = true;
     const box = [o.x, Math.min(o.y, c.y), c.x + c.w - o.x, Math.max(o.y + o.h, c.y + c.h) - Math.min(o.y, c.y)];
-    if (inkCount(bin, [o.x + o.w + 1, box[1] + 3, c.x - o.x - o.w - 2, box[3] - 6]) > 12) continue;
-    found.push({ kind: 'checkbox', shape: 'bracket', box });
+    pairs.push(box); found.push({ kind: 'checkbox', shape: 'bracket', box });   // ticks inside are fine: forms are often filled
   }
+  // a tick that touches the other bracket hides it; use the typical box width from the pairs we did find
+  const bw = pairs.length ? pairs.map((b) => b[2]).sort((a, b) => a - b)[pairs.length >> 1] : 30;
+  for (const o of opens) if (!o.paired) found.push({ kind: 'checkbox', shape: 'bracket', box: [o.x, o.y, bw, o.h], guessed: true });
+  for (const c of closes) if (!usedClose.has(c) && !found.some((f) => overlapFrac(f.box, [c.x + c.w - bw, c.y, bw, c.h]) > 0.3)) found.push({ kind: 'checkbox', shape: 'bracket', box: [c.x + c.w - bw, c.y, bw, c.h], guessed: true });
 
   // 2) printed squares
   const contours = new cv.MatVector(), hier = new cv.Mat();
@@ -109,42 +122,110 @@ function detectPage(gray) {
   const dark = new cv.Mat(), near = new cv.Mat(), k5 = cv.Mat.ones(5, 5, cv.CV_8U);
   cv.threshold(gray, dark, 170, 255, cv.THRESH_BINARY_INV); cv.dilate(dark, near, k5); dark.delete(); k5.delete();
   const nd = near.data;
-  const lineAt = (prof, thr) => { const out = []; let grp = []; prof.forEach((v, i) => { if (v > thr) { if (grp.length && i - grp[grp.length - 1] > 4) { out.push(grp); grp = []; } grp.push(i); } }); if (grp.length) out.push(grp); return out.map((g) => Math.round(g.reduce((a, b) => a + b, 0) / g.length)); };
+  const lineAt = (prof, thr) => {
+    const groups = []; let grp = [];
+    prof.forEach((v, i) => { if (v > thr) { if (grp.length && i - grp[grp.length - 1] > 4) { groups.push(grp); grp = []; } grp.push(i); } });
+    if (grp.length) groups.push(grp);
+    const lines = groups.map((g) => ({ at: Math.round(g.reduce((a, b) => a + b, 0) / g.length), score: Math.max(...g.map((i) => prof[i])) }));
+    const out = [];
+    for (const l of lines) { const last = out[out.length - 1]; if (last && l.at - last.at < 22) { if (l.score > last.score) out[out.length - 1] = l; } else out.push(l); }
+    return out.map((l) => l.at);
+  };
   // tolerate rules that are a hair off straight: sum 3 neighbouring px, then take the max within ±3 px
   const tol = (p) => { const c = p.map((_, i) => (p[i - 1] || 0) + p[i] + (p[i + 1] || 0)); return c.map((_, i) => { let m = 0; for (let k = Math.max(0, i - 3); k <= Math.min(c.length - 1, i + 3); k++) m = Math.max(m, c[k]); return m; }); };
   for (const t of tables) {
     const [tx, ty, tw, th] = t, col = new Array(tw).fill(0), row = new Array(th).fill(0);
-    for (let y = 0; y < th; y++) for (let x = 0; x < tw; x++) { const o = (ty + y) * gw + tx + x, v = gd[o]; if (v < 250 && v >= 170 && !nd[o]) { col[x]++; row[y]++; } }
-    const xs = lineAt(tol(col.map((v) => v / th)), 0.3), ys = lineAt(tol(row.map((v) => v / tw)), 0.3);
+    const hd = hl.data, vd = vl.data;
+    for (let y = 0; y < th; y++) for (let x = 0; x < tw; x++) {
+      const o = (ty + y) * gw + tx + x, v = gd[o];
+      // a rule pixel is part of a long straight run (dark or faint), or a light-grey pixel away from printed letters
+      const faintRule = v < 250 && v >= 170 && !nd[o];
+      if (vd[o] || faintRule) col[x]++;
+      if (hd[o] || faintRule) row[y]++;
+    }
+    const xs = lineAt(tol(col.map((v) => v / th)), 0.45), ys = lineAt(tol(row.map((v) => v / tw)), 0.35);
     for (let j = 0; j + 1 < ys.length; j++) for (let i = 0; i + 1 < xs.length; i++) {
       const w = xs[i + 1] - xs[i], h = ys[j + 1] - ys[j];
       if (w < 45 || h < 28) continue;
       const cell = [tx + xs[i] + 5, ty + ys[j] + 5, w - 10, h - 10];
-      if (inkCount(bin, cell) > 0.004 * cell[2] * cell[3]) continue;                // printed text: a heading or row label
       if (found.some((f) => overlapFrac(f.box, cell) > 0.3)) continue;
-      found.push({ kind: 'cell', box: cell, table: t });
+      // keep cells even if something is written in them (filled sample forms); printed headings get set to Ignore
+      const printed = inkCount(bin, cell) / (cell[2] * cell[3]);
+      found.push({ kind: 'cell', box: cell, table: t, header: j === 0, inked: printed > 0.004, col: i, row: j });
     }
   }
   near.delete();
 
   // 4) write-in lines (dark underlines outside tables)
-  const ul = new cv.Mat(); const uk = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(60, 1));
+  const ul = new cv.Mat(); const uk = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(40, 1));
   cv.morphologyEx(bin, ul, cv.MORPH_OPEN, uk);
   const ll = new cv.Mat(), ls = new cv.Mat(), lc = new cv.Mat();
   const ln = cv.connectedComponentsWithStats(ul, ll, ls, lc, 8);
   for (let i = 1; i < ln; i++) {
     const x = ls.intAt(i, 0), y = ls.intAt(i, 1), w = ls.intAt(i, 2), h = ls.intAt(i, 3);
-    if (h > 6 || w < 60 || w > W * 0.75) continue;
+    if (h > 6 || w < 40 || w > W * 0.75) continue;
+    if (y < H * 0.06 || y > H * 0.95 || x < W * 0.03 || x + w > W * 0.97) continue;   // scanner edges and shadows
     if (tables.some((t) => x >= t[0] - 5 && x + w <= t[0] + t[2] + 5 && y >= t[1] - 5 && y <= t[1] + t[3] + 5)) continue;
-    const box = [Math.max(0, x - 8), Math.max(0, y - 78), w + 16, 86];
+    const box = [Math.max(0, x - 8), Math.max(0, y - (w < 120 ? 52 : 78)), w + 16, w < 120 ? 60 : 86];
     if (found.some((f) => overlapFrac(f.box, box) > 0.3)) continue;
     found.push({ kind: 'line', box });
   }
   [ll, ls, lc, ul, uk, hk, vk, hl, vl, grid, dk, bin, faint].forEach((m) => m.delete());
 
+  found.pairs = pairs;
   // reading order: top to bottom, then left to right (rows within ~18 px)
   found.sort((a, b) => (Math.abs(a.box[1] - b.box[1]) < 18 ? a.box[0] - b.box[0] : a.box[1] - b.box[1]));
   return found;
+}
+
+// Ticks often run through a bracket and hide its shape. Take the clean "[" brackets found anywhere in the document,
+// average them into a pattern, and look for that pattern on every page.
+function bracketPattern(samples) {
+  if (samples.length < 2) return null;
+  const hs = samples.map((s) => s.box[3]).sort((a, b) => a - b), h = hs[hs.length >> 1];
+  const w = Math.max(8, Math.round(h * 0.42)) + 4, acc = new Float32Array(w * (h + 4));
+  let k = 0;
+  for (const s of samples.slice(0, 60)) {
+    const [x, y] = s.box; if (x < 2 || y < 2 || x + w > s.gray.cols || y + h + 2 > s.gray.rows) continue;
+    const roi = s.gray.roi(new cv.Rect(x - 2, y - 2, w, h + 4)), sz = new cv.Mat(); cv.resize(roi, sz, new cv.Size(w, h + 4)); roi.delete();
+    for (let i = 0; i < acc.length; i++) acc[i] += sz.data[i]; sz.delete(); k++;
+  }
+  if (k < 2) return null;
+  const t = new cv.Mat(h + 4, w, cv.CV_8U); for (let i = 0; i < acc.length; i++) t.data[i] = Math.round(acc[i] / k);
+  return { mat: t, h, w };
+}
+function recoverBrackets(gray, found, pat, bw) {
+  // a box needs both a "[" and a mirrored "]" one box-width to its right
+  const flip = new cv.Mat(); cv.flip(pat.mat, flip, 1);
+  const resL = new cv.Mat(), resR = new cv.Mat();
+  cv.matchTemplate(gray, pat.mat, resL, cv.TM_CCOEFF_NORMED);
+  cv.matchTemplate(gray, flip, resR, cv.TM_CCOEFF_NORMED); flip.delete();
+  const added = [], dx = bw - pat.w + 4;
+  const rAt = (x, y) => {
+    let best = -1;
+    for (let yy = y - 3; yy <= y + 3; yy++) for (let xx = x - 4; xx <= x + 4; xx++) {
+      if (yy < 0 || xx < 0 || yy >= resR.rows || xx >= resR.cols) continue;
+      best = Math.max(best, resR.floatAt(yy, xx));
+    }
+    return best;
+  };
+  for (let n = 0; n < 200; n++) {
+    const m = cv.minMaxLoc(resL); if (m.maxVal < 0.72) break;
+    const lx = m.maxLoc.x, ly = m.maxLoc.y;
+    cv.rectangle(resL, new cv.Point(Math.max(0, lx - 12), Math.max(0, ly - 12)), new cv.Point(lx + 12, ly + 12), new cv.Scalar(-1), -1);
+    if (rAt(lx + dx, ly) < 0.6) continue;
+    const box = [lx + 2, ly + 2, bw, pat.h];
+    // a printed box starts a phrase: the strip left of it is blank (letters inside words fail this)
+    if (box[0] < 14) continue;
+    let ink = 0;
+    for (let yy = box[1] + 3; yy < box[1] + box[3] - 3; yy++) for (let xx = box[0] - 12; xx < box[0] - 3; xx++) if (gray.ucharPtr(yy, xx)[0] < 140) ink++;
+    if (ink > 4) continue;
+    const near = (f) => Math.abs(f.box[1] + f.box[3] / 2 - (box[1] + box[3] / 2)) < box[3] && Math.abs(f.box[0] + f.box[2] / 2 - (box[0] + box[2] / 2)) < bw * 1.8;
+    if (found.some(near) || added.some(near)) continue;
+    added.push({ kind: 'checkbox', shape: 'bracket', box, guessed: true });
+  }
+  resL.delete(); resR.delete();
+  return added;
 }
 
 /* ---------- AI naming ---------- */
@@ -199,6 +280,32 @@ function cbZones(b) {
   return { box: [x - 8, y - 22, w + 16, h + 44], inner: [x + 4, y + 3, Math.max(4, w - 8), Math.max(4, h - 6)], gap: [x + w + 2, y - 2, 10, h + 4],
     above: [x - 8, y - h - 8, w + 70, h + 4], anchor: [x - 55, y - 26, 420, h + 52], line: [x - 15, y - 28, 560, h + 56] };
 }
+// The sample PDF is often a filled-in copy. Processing treats anything on the reference as printed and subtracts it,
+// so the sample's own handwriting would hide the answers on every scan. Blank the answer areas, keeping ruled lines.
+function cleanRef(p, fields) {
+  const c = document.createElement('canvas'); c.width = p.w; c.height = p.h;
+  const ctx = c.getContext('2d'); ctx.drawImage(p.img, 0, 0, p.w, p.h);
+  const id = ctx.getImageData(0, 0, p.w, p.h), d = id.data;
+  const white = (x0, y0, w, h, keepRules) => {
+    x0 = Math.max(0, Math.round(x0)); y0 = Math.max(0, Math.round(y0));
+    const x1 = Math.min(p.w, Math.round(x0 + w)), y1 = Math.min(p.h, Math.round(y0 + h));
+    for (let y = y0; y < y1; y++) {
+      if (keepRules) {
+        let dark = 0; for (let x = x0; x < x1; x++) if (d[(y * p.w + x) * 4] < 150) dark++;
+        if (dark > (x1 - x0) * 0.6) continue;   // a printed rule or underline
+      }
+      for (let x = x0; x < x1; x++) { const k = (y * p.w + x) * 4; d[k] = d[k + 1] = d[k + 2] = 255; }
+    }
+  };
+  for (const f of fields) {
+    if (f.kind === 'ignore') continue;
+    if (f.kind === 'checkbox') { const [x, y, w, h] = cbZones(f.box).inner; white(x, y, w, h, false); }
+    else white(f.box[0], f.box[1], f.box[2], f.box[3], true);
+  }
+  ctx.putImageData(id, 0, 0);
+  return c.toDataURL('image/jpeg', 0.9);
+}
+
 function buildTemplate(name) {
   const used = new Set(), uid = (base) => { let id = slug(base), k = 2; while (used.has(id)) id = `${slug(base)}_${k++}`; used.add(id); return id; };
   const questions = [], textFields = [], groups = new Map();
@@ -207,7 +314,7 @@ function buildTemplate(name) {
     if (f.kind === 'checkbox') {
       const key = `${f.page}|${(f.question || 'Question').trim().toLowerCase()}`;
       if (!groups.has(key)) { const q = { id: uid(f.question || `p${f.page}_question`), label: f.question || `Page ${f.page} question`, kind: 'single', page: f.page, options: [] }; groups.set(key, q); questions.push(q); }
-      const q = groups.get(key); if (!f.single) q.kind = 'multi';
+      const q = groups.get(key); if (!f.single || !f.question) q.kind = 'multi';
       q.options.push({ value: f.option || `Option ${q.options.length + 1}`, ...cbZones(f.box) });
     } else {
       const [x, y, w, h] = f.box.map(Math.round);
@@ -218,7 +325,7 @@ function buildTemplate(name) {
   // a question with a single option is a yes/no tick: keep it multi so "ticked" shows as 1/0
   for (const q of questions) if (q.options.length === 1) q.kind = 'multi';
   return { id: B.editingId || `form-${Date.now().toString(36)}`, name, short: slug(name).slice(0, 24), refWidth: CFG.refWidth, custom: true,
-    created: new Date().toISOString(), pages: B.pages.map((p, i) => ({ n: i + 1, ref: p.url })), textFields, questions,
+    created: new Date().toISOString(), pages: B.pages.map((p, i) => ({ n: i + 1, ref: cleanRef(p, B.fields.filter((f) => f.page === i + 1)), source: p.url })), textFields, questions,
     builder: { fields: B.fields.map(({ n, page, kind, question, option, single, box }) => ({ n, page, kind, question, option, single, box })) } };
 }
 
@@ -268,21 +375,61 @@ async function startFromPdf(file) {
     const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise;
     if (pdf.numPages > 20) throw new Error('that PDF has more than 20 pages; upload one blank copy of the form');
     B.pages = []; B.fields = []; B.page = 0; B.sel = null; B.editingId = null;
+    const pages = [];
     for (let i = 1; i <= pdf.numPages; i++) {
       prog(`Finding answer boxes on page ${i} of ${pdf.numPages}…`); await sleep(0);
       const canvas = await renderPage(pdf, i, CFG.refWidth);
       const rgba = cv.imread(canvas), g0 = new cv.Mat(); cv.cvtColor(rgba, g0, cv.COLOR_RGBA2GRAY); rgba.delete(); canvas.width = canvas.height = 0;
       const gray = deskew(g0); g0.delete();
-      const found = detectPage(gray);
+      pages.push({ gray, found: detectPage(gray) });
+    }
+    // second pass: find ticked brackets using the clean ones as a pattern
+    const samples = pages.flatMap((p) => (p.found.pairs || []).map((box) => ({ box, gray: p.gray })));
+    const pat = bracketPattern(samples);
+    if (pat) {
+      const bws = samples.map((x) => x.box[2]).sort((a, b) => a - b), bw = bws[bws.length >> 1];
+      for (const p of pages) {
+        const cells = p.found.filter((f) => f.kind === 'cell');
+        const extra = recoverBrackets(p.gray, p.found, pat, bw).filter((e) => !cells.some((c) => overlapFrac(e.box, c.box) > 0.3));
+        p.found.push(...extra);
+        p.found.sort((a, b) => (Math.abs(a.box[1] - b.box[1]) < 18 ? a.box[0] - b.box[0] : a.box[1] - b.box[1]));
+      }
+      pat.mat.delete();
+    }
+    // every printed option has its label to the right; boxes on scan borders don't
+    for (const p of pages) {
+      const g = p.gray;
+      const inkIn = (x0, x1, y0, y1) => {
+        let n = 0;
+        for (let yy = Math.max(0, y0); yy < Math.min(g.rows, y1); yy++) for (let xx = Math.max(0, x0); xx < Math.min(g.cols, x1); xx++) if (g.ucharPtr(yy, xx)[0] < 140) n++;
+        return n;
+      };
+      p.found = p.found.filter((f) => {
+        const [x, y, w, h] = f.box;
+        if (f.kind === 'checkbox') return inkIn(x + w + 3, x + w + 70, y + 2, y + h - 2) >= 25 || inkIn(x - 70, x - 3, y + 2, y + h - 2) >= 25;
+        // a write-in line has its printed question on the same row, to its left or just above
+        if (f.kind === 'line') return inkIn(x - 400, x - 4, y + h - 40, y + h) >= 40 || inkIn(x, x + w, y - 40, y + 4) >= 60;
+        return true;
+      });
+    }
+    for (let k = 0; k < pages.length; k++) {
+      const i = k + 1, { gray, found } = pages[k];
       const url = matToDataURL(gray), img = await loadImage(url);
       B.pages.push({ url, img, w: gray.cols, h: gray.rows }); gray.delete();
-      for (const f of found) B.fields.push({ n: B.fields.length + 1, page: i, kind: f.kind === 'checkbox' ? 'checkbox' : f.kind === 'cell' ? 'number' : 'text', question: '', option: '', single: true, box: f.box });
+      // row-label columns: the left columns where every row already has printed text
+      const cells = found.filter((f) => f.kind === 'cell' && !f.header), labelCols = new Set();
+      for (const c of new Set(cells.map((f) => `${f.table}|${f.col}`))) {
+        const colCells = cells.filter((f) => `${f.table}|${f.col}` === c);
+        if (colCells[0].col <= 1 && colCells.every((f) => f.inked)) labelCols.add(c);
+      }
+      const start = (f) => f.kind === 'checkbox' ? 'checkbox' : f.kind === 'cell' ? (f.header || labelCols.has(`${f.table}|${f.col}`) ? 'ignore' : 'text') : 'text';
+      for (const f of found) B.fields.push({ n: B.fields.length + 1, page: i, kind: start(f), question: '', option: '', single: true, box: f.box });
     }
     pdf.destroy();
     if (!B.fields.length) prog('No answer boxes were found automatically. Draw them on each page.');
     else if ($('bUseAI').checked) {
       try { const k = await aiLabel(prog); prog(`Found ${B.fields.length} boxes; the AI named ${k}. Check them, then save.`); }
-      catch (e) { prog(`Found ${B.fields.length} boxes, but they couldn't be named automatically (${e.message}). Name them below.`); }
+      catch (e) { prog(`Found ${B.fields.length} boxes, but they couldn't be named (${e.message}). Start the helper and click "Name with AI", or name them below.`); }
     } else prog(`Found ${B.fields.length} boxes. Name them below, then save.`);
     $('bEdit').hidden = false; drawPage(); renderList();
   } catch (e) { console.error(e); prog('Could not read that PDF: ' + e.message); }
@@ -303,7 +450,7 @@ async function saveForm() {
 
 async function editForm(id) {
   const t = await FormStore.get(id); if (!t || !t.builder) return alert('This form cannot be edited here.');
-  B.pages = []; for (const p of t.pages) { const img = await loadImage(p.ref); B.pages.push({ url: p.ref, img, w: img.width, h: img.height }); }
+  B.pages = []; for (const p of t.pages) { const src = p.source || p.ref, img = await loadImage(src); B.pages.push({ url: src, img, w: img.width, h: img.height }); }
   B.fields = t.builder.fields.map((f) => ({ ...f })); B.page = 0; B.sel = null; B.editingId = t.id;
   $('bName').value = t.name; $('bProgress').textContent = 'Editing a saved form.'; $('bEdit').hidden = false;
   $('builder').showModal(); drawPage(); renderList();
@@ -314,6 +461,13 @@ function wireBuilder() {
   $('bClose').addEventListener('click', () => $('builder').close());
   $('bFile').addEventListener('change', (e) => { const f = e.target.files[0]; e.target.value = ''; if (f) startFromPdf(f); });
   $('bSave').addEventListener('click', saveForm);
+  $('bName2').addEventListener('click', async () => {
+    const btn = $('bName2'), prog = (t) => { $('bProgress').textContent = t; };
+    btn.disabled = true;
+    try { const k = await aiLabel(prog); prog(`The AI named ${k} of ${B.fields.length} boxes. Check them, then save.`); drawPage(); renderList(); }
+    catch (e) { prog(`Couldn't name the boxes: ${e.message}. Start the helper (step 3 on the main page), then click "Name with AI" again.`); }
+    finally { btn.disabled = false; }
+  });
   $('bPages').addEventListener('click', (e) => { const p = e.target.dataset.p; if (p !== undefined) { B.page = +p; B.sel = null; drawPage(); renderList(); } });
   $('bList').addEventListener('input', (e) => {
     const card = e.target.closest('.bf'); if (!card) return; const f = B.fields.find((x) => x.n === +card.dataset.n); const k = e.target.dataset.k;
