@@ -134,12 +134,13 @@ Setup is done.
 ## Using Tally (every batch)
 
 1. **Start the helper.** Open Tally, click **Copy** in the helper box, paste it into PowerShell/Terminal, and press Enter. Keep that window open until you're finished. (Not needed for **Offline**.)
-2. **Add scans.** Drop in PDFs, **ZIP files** (folders inside are fine) or a **whole folder**, or use the **Choose** buttons. Other file types are skipped.
-3. **Optional: Known names.** List the barangays/puroks and surveyor names, one per line. Readings are matched to these exact spellings, numbers are never changed (Barangay 12 stays 12), and anything that doesn't match is flagged.
-4. **Optional: Model.** Choose which model reads the handwriting. **Default** is fine for most batches.
-5. Click **Process PDFs**. About 3 seconds per survey to read the pages, plus the AI time.
-6. Click **Download CSV** (or **Download Excel**).
-7. **Optional: Check handwritten values.** Anything the AI was unsure about, or that failed a check (a count that isn't a number, a date that isn't a date, a name not on your list), is shown next to the handwriting. Your fixes go straight into the downloads.
+2. **Check the form.** Step 1 shows which survey form Tally expects. Pick another one if needed.
+3. **Add scans.** Drop in PDFs, **ZIP files** (folders inside are fine) or a **whole folder**, or use the **Choose** buttons. Other file types are skipped.
+4. **Optional: Known names.** List the barangays/puroks and surveyor names, one per line. Readings are matched to these exact spellings, numbers are never changed (Barangay 12 stays 12), and anything that doesn't match is flagged.
+5. **Optional: Model.** Choose which model reads the handwriting. **Default** is fine for most batches.
+6. Click **Process PDFs**. About 3 seconds per survey to read the pages, plus the AI time.
+7. Click **Download CSV** (or **Download Excel**).
+8. **Optional: Check handwritten values.** Anything the AI was unsure about, or that failed a check (a count that isn't a number, a date that isn't a date, a name not on your list), is shown next to the handwriting. Your fixes go straight into the downloads.
 
 To stop the helper when you're done, click its window and press **Ctrl+C**.
 
@@ -149,6 +150,33 @@ Tips:
 - **Respondent IDs** are the PDF's path (e.g. `BrgyA/day1/s01`), with `#2`, `#3`… when one PDF holds several surveys.
 - **For analysis**, upload the downloaded CSV to Claude or Gemini. It's plain text, so it uses very little.
 - **Don't close the tab** before downloading. Results live only in that tab.
+
+---
+
+## Using a different survey form
+
+Tally comes with the E-WACS form built in, and you can teach it any other paper form in a few minutes.
+
+1. **Get a blank copy** of the form as a PDF: scan an unfilled form, or export the original document to PDF.
+2. In Tally, step 1 **Choose the form** → **New form from a blank PDF**. Give it a name and choose the PDF.
+3. Tally finds the answer areas on every page:
+   - checkboxes, printed as `[ ]` or as small squares
+   - write-in lines (`Name: ________`)
+   - empty table cells
+4. If the helper is running, your AI (Claude or Gemini) names each box, e.g. "Housing type: Townhouse" or "Smartphones: active count", and marks boxes that aren't answers as **Ignore**.
+5. **Check every page** in the editor:
+   - Click a box (or its row in the list) to change its type: checkbox, number, text or ignore.
+   - Edit its question, and for checkboxes the option text. Checkboxes with the same question become one column.
+   - Click **Delete** for wrong boxes.
+   - Tick **Draw a missing box** and drag on the page to add one.
+6. **Save form.** It becomes the active form and is remembered in this browser. **Edit** and **Delete** appear next to it.
+
+**Share a form with your team:** choose it and click **Export this form**, which gives you a `.tally.json` file with the page images inside. Your teammates use **Import a form file**. Forms are saved per browser, so each computer needs the import once.
+
+Tips:
+- **Blank copy:** the cleaner the blank copy, the better the detection. Ticks or writing on the "blank" form hide those boxes.
+- **Matching scans:** filled forms must be the same layout as the blank one. Page order can vary, but a reprinted form with moved questions needs a new form.
+- **Switching forms:** switch forms only with an empty list. **Clear list** in step 4 first.
 
 ---
 
@@ -166,7 +194,7 @@ Tips:
 | Gemini error **"This client is no longer supported…"** | That's the old Gemini CLI. Install Antigravity CLI (Step 2b). |
 | **Usage limit reached** | Wait for your plan's limit to reset, then click **Read remaining handwriting**. |
 | Page still shows an old version | Press **Ctrl+Shift+R** (Windows/Linux) or **Cmd+Shift+R** (Mac). The version number is at the top right. |
-| A PDF is listed as **could not open** or **no E-WACS survey found** | Re-scan it; that file is listed in the Review sheet. |
+| A PDF is listed as **could not open** or **no pages of this form found** | Check that the right form is chosen in step 1, or re-scan it. The file is listed in the Review sheet. |
 
 ---
 
@@ -223,7 +251,7 @@ To run it locally instead: `python3 -m http.server` in this folder (Windows: `py
 ### How it works
 
 1. **Read the pages:** pdf.js renders each page.
-2. **Line up with the template:** OpenCV.js (ORB features + homography) works out which of the 5 form pages it is and lines it up with the template, then each field is fine-aligned.
+2. **Line up with the template:** OpenCV.js (ORB features + homography) works out which page of the form it is and lines it up with the template, then each field is fine-aligned.
 3. **Checkboxes:** ink is counted in the parts of each box that are always empty on a blank form.
 4. **Handwriting:** the blank form is subtracted from each field, and fields with leftover ink are cropped and packed into labelled sheets.
 5. **AI reading:** the sheets go to `ai-helper.mjs`, which runs `claude -p` (Claude Code) or `agy -p` (Antigravity CLI) and returns structured JSON. Offline mode uses TrOCR via transformers.js instead.
@@ -235,6 +263,6 @@ Debug view: add `?debug=1` to the URL to see the aligned pages with the field bo
 
 - **Template:** `templates/ewacs-v1.json` was mapped from one filled sample. A clean **blank scan of pages 3–5** would make the checkbox references cleaner.
 - **Testing:** tested on the sample, a rotated/rescaled/blurred 150 dpi copy, a 60-PDF ZIP (≈3.5 min, ~100 MB memory) and a messy batch (nested folders, corrupt PDF, unrelated PDF, missing pages, two surveys in one PDF). Spot-check the first real batch against the paper forms.
-- **Other forms:** a different questionnaire needs its own template JSON plus reference page images.
+- **Other forms:** build them in the page (see *Using a different survey form*). Detection handles `[ ]` brackets, printed squares, underlines and ruled tables; anything else can be drawn by hand.
 
 Third-party code in `vendor/`: pdf.js, SheetJS Community Edition, OpenCV.js, fflate, transformers.js + ONNX Runtime Web, Public Sans font (Apache-2.0 / MIT / OFL). Offline model: microsoft/trocr-small-handwritten (ONNX export by Xenova).

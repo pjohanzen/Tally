@@ -3,10 +3,10 @@
  * -> per-field local alignment (matchTemplate) -> checkboxes by ink count -> handwriting crops for the AI sheets.
  */
 'use strict';
-const APP_VERSION = '2026.11.13-13';
+const APP_VERSION = '2026.11.13-15';
 
 const CFG = {
-  template: 'templates/ewacs-v1.json',
+  refWidth: 1653,           // pages are rendered so the short side is this many px (A4 at 200 dpi)
   orbFeatures: 3000,
   alignScale: 0.5,          // ORB runs on a half-size image
   acceptInliers: 300,       // accept the expected page without trying the others
@@ -28,14 +28,62 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 // yield to the browser without setTimeout, which Chrome throttles hard in background tabs
 const tick = () => new Promise((r) => { const c = new MessageChannel(); c.port1.onmessage = () => r(); c.port2.postMessage(0); });
 
+/* ---------------- forms (templates) ---------------- */
+const BUILTIN_FORMS = [{ id: 'ewacs-v1', name: 'E-WACS Household Survey, Bacolod City', url: 'templates/ewacs-v1.json', builtIn: true }];
+const FormStore = {
+  db: null,
+  async open() {
+    if (this.db) return this.db;
+    this.db = await new Promise((res, rej) => {
+      const r = indexedDB.open('tally-forms', 1);
+      r.onupgradeneeded = () => r.result.createObjectStore('forms', { keyPath: 'id' });
+      r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+    });
+    return this.db;
+  },
+  async tx(mode, fn) { const db = await this.open(); return new Promise((res, rej) => { const t = db.transaction('forms', mode); const req = fn(t.objectStore('forms')); t.oncomplete = () => res(req && req.result); t.onerror = () => rej(t.error); }); },
+  list() { return this.tx('readonly', (st) => st.getAll()).then((a) => a || []).catch(() => []); },
+  get(id) { return this.tx('readonly', (st) => st.get(id)); },
+  put(tpl) { return this.tx('readwrite', (st) => st.put(tpl)); },
+  del(id) { return this.tx('readwrite', (st) => st.delete(id)); },
+};
+async function allForms() {
+  const custom = (await FormStore.list()).map((t) => ({ id: t.id, name: t.name, custom: true }));
+  return [...BUILTIN_FORMS, ...custom];
+}
+function freeRefs() {
+  for (const r of S.refs) for (const k of ['gray', 'small', 'bin', 'kp', 'des']) { try { r[k] && r[k].delete(); } catch (e) { /* already freed */ } }
+  S.refs = [];
+}
+async function useForm(id) {
+  const b = BUILTIN_FORMS.find((f) => f.id === id);
+  const tpl = b ? await (await fetch(b.url)).json() : await FormStore.get(id);
+  if (!tpl) throw new Error('form not found');
+  const refs = [];
+  for (const p of tpl.pages) refs.push(await loadRef(p));
+  freeRefs(); S.refs = refs; S.tpl = tpl; S.formId = id;
+  settings.formId = id; saveSettings();
+  await renderForms();
+}
+async function renderForms() {
+  const forms = await allForms(), sel = $('formSel');
+  sel.innerHTML = forms.map((f) => `<option value="${esc(f.id)}"${f.id === S.formId ? ' selected' : ''}>${esc(f.name)}${f.custom ? '' : ' (built in)'}</option>`).join('');
+  const cur = forms.find((f) => f.id === S.formId);
+  $('formMeta').textContent = S.tpl ? `${S.tpl.pages.length} page(s), ${S.tpl.questions.length} checkbox question(s), ${S.tpl.textFields.length} write-in field(s)` : '';
+  $('formName').textContent = S.tpl ? `Form: ${S.tpl.name}` : '';
+  $('btnFormEdit').hidden = $('btnFormDelete').hidden = !(cur && cur.custom);
+  sel.disabled = S.busy || S.surveys.length > 0;
+  $('formLock').hidden = !S.surveys.length;
+}
+
 /* ---------------- boot ---------------- */
 async function boot() {
   pdfjsLib.GlobalWorkerOptions.workerSrc = 'vendor/pdf.worker.min.js';
   if (S.debug) $('debug').hidden = false;
   try {
     while (!(window.cv && cv.Mat)) await sleep(100);
-    S.tpl = await (await fetch(CFG.template)).json();
-    for (const p of S.tpl.pages) S.refs.push(await loadRef(p));
+    try { await useForm(settings.formId || BUILTIN_FORMS[0].id); }
+    catch (e) { console.warn('saved form missing, using built-in', e); await useForm(BUILTIN_FORMS[0].id); }
     S.ready = true;
     setStatus('Ready', 'ok');
   } catch (e) {
@@ -115,10 +163,10 @@ function localOffset(ref, warpedSmall, anchor) {
 function shift(box, o) { return [box[0] + o.dx, box[1] + o.dy, box[2], box[3]]; }
 
 /* ---------------- PDF processing ---------------- */
-async function renderPage(pdf, i) {
+async function renderPage(pdf, i, refW) {
   const page = await pdf.getPage(i);
   const vp0 = page.getViewport({ scale: 1 });
-  const scale = S.tpl.refWidth / Math.min(vp0.width, vp0.height);
+  const scale = (refW || (S.tpl && S.tpl.refWidth) || CFG.refWidth) / Math.min(vp0.width, vp0.height);
   const vp = page.getViewport({ scale });
   const c = document.createElement('canvas'); c.width = Math.round(vp.width); c.height = Math.round(vp.height);
   const ctx = c.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height);
@@ -154,7 +202,7 @@ async function processFile(f) {
   }
   const real = mine.filter((s) => !s.blank).length, blank = mine.length - real;
   const missing = mine.filter((s) => !s.blank && s.flags.some((x) => /^Missing form page/.test(x)));
-  if (!real) f.issue = unknown.length ? `No E-WACS survey found (${unknown.length} page(s) did not match the form)` : 'No filled survey found (only blank pages)';
+  if (!real) f.issue = unknown.length ? `No pages of this form found (${unknown.length} page(s) did not match the form)` : 'No filled survey found (only blank pages)';
   else if (unknown.length) f.issue = `${unknown.length} page(s) did not match the form`;
   f.status = `${real} survey${real === 1 ? '' : 's'}` + (blank ? `, ${blank} blank skipped` : '') + (missing.length ? ', pages missing' : '') + (unknown.length ? `, ${unknown.length} page(s) not recognised` : '');
   f.cls = !real ? 'err' : unknown.length || mine.some((s) => !s.blank && s.flags.length) ? 'warn' : 'ok';
@@ -471,7 +519,7 @@ const READ_SCHEMA = { type: 'object', properties: { values: { type: 'array', ite
 
 function readerPrompt() {
   const b = listOf(settings.barangays), s = listOf(settings.surveyors);
-  return `These images contain handwriting cropped from household survey forms (E-WACS e-waste survey, Bacolod City, Philippines).
+  return `These images contain handwriting cropped from survey forms (${S.tpl ? S.tpl.name : 'survey'}, Philippines).
 Each box has a yellow ID label on its left (for example 12n, 13t, 14c). Transcribe EVERY box in EVERY image exactly as written.
 
 Rules by the last letter of the ID:
@@ -729,7 +777,7 @@ async function processAll() {
   }
   const n = S.surveys.filter((s) => !s.blank).length;
   prog(`Done: ${n} survey(s) from ${S.files.length} PDF(s).`, 1);
-  S.busy = false; renderAll();
+  S.busy = false; renderAll(); renderForms();
   window.__done = true;
 }
 
@@ -743,6 +791,7 @@ function toCsv(rows) {
   const q = (v) => { v = v ?? ''; v = String(v); if (/^[=+@\t\r]/.test(v)) v = "'" + v; return /[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v; };
   return [cols.join(','), ...rows.map((r) => cols.map((c) => q(r[c])).join(','))].join('\n');
 }
+function formSlug() { return String((S.tpl && (S.tpl.short || S.tpl.name)) || 'survey').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 30) || 'survey'; }
 function stamp() { return new Date().toISOString().slice(0, 16).replace(/[:T]/g, '-'); }
 
 function flash(btn, t) { const o = btn.textContent; btn.textContent = t; setTimeout(() => (btn.textContent = o), 1500); }
@@ -783,6 +832,10 @@ function wire() {
   $('listBarangays').addEventListener('change', (e) => { settings.barangays = e.target.value; saveSettings(); });
   $('listSurveyors').addEventListener('change', (e) => { settings.surveyors = e.target.value; saveSettings(); });
   $('btnHelper').addEventListener('click', checkHelper);
+  $('formSel').addEventListener('change', async (e) => {
+    const id = e.target.value; setStatus('Loading form', '');
+    try { await useForm(id); setStatus('Ready', 'ok'); } catch (err) { setStatus('Could not load that form: ' + err.message, 'err'); await renderForms(); }
+  });
   $('modelSel').addEventListener('change', (e) => { settings.models[settings.reader] = e.target.value; saveSettings(); });
   $('helperCmd').addEventListener('change', (e) => { settings.helperCmd = e.target.value.trim() || defaultHelperCmd(); saveSettings(); renderSettings(); });
   $('btnResetCmd').addEventListener('click', () => { settings.helperCmd = defaultHelperCmd(); saveSettings(); renderSettings(); });
@@ -793,7 +846,7 @@ function wire() {
   $('btnRetry').addEventListener('click', retryRemaining);
   $('btnClear').addEventListener('click', () => {
     if (!confirm('Remove all PDFs and results from this page? Download your CSV first if you need it.')) return;
-    S.files = []; S.surveys = []; S.items = {}; S.zips.clear(); S.debugPages = []; S.readerUsed = '';
+    S.files = []; S.surveys = []; S.items = {}; S.zips.clear(); S.debugPages = []; S.readerUsed = ''; renderForms();
     $('progress').textContent = ''; $('barFill').style.width = '0'; $('summary').textContent = 'Results appear here after processing.';
     renderAll();
   });
@@ -819,10 +872,10 @@ function wire() {
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(resp), 'Respondents');
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(dev.length ? dev : [{ note: 'no device rows' }]), 'Devices');
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(review.length ? review : [{ note: 'nothing to review' }]), 'Review');
-    XLSX.writeFile(wb, `ewacs-responses-${stamp()}.xlsx`);
+    XLSX.writeFile(wb, `${formSlug()}-responses-${stamp()}.xlsx`);
   });
-  $('btnCsvR').addEventListener('click', () => download(`ewacs-respondents-${stamp()}.csv`, new Blob(['﻿' + toCsv(buildRows().resp)], { type: 'text/csv' })));
-  $('btnCsvD').addEventListener('click', () => download(`ewacs-devices-${stamp()}.csv`, new Blob(['﻿' + toCsv(buildRows().dev)], { type: 'text/csv' })));
+  $('btnCsvR').addEventListener('click', () => download(`${formSlug()}-respondents-${stamp()}.csv`, new Blob(['﻿' + toCsv(buildRows().resp)], { type: 'text/csv' })));
+  $('btnCsvD').addEventListener('click', () => download(`${formSlug()}-devices-${stamp()}.csv`, new Blob(['﻿' + toCsv(buildRows().dev)], { type: 'text/csv' })));
   window.addEventListener('beforeunload', (e) => { if (S.surveys.length) { e.preventDefault(); e.returnValue = ''; } });
 }
 

@@ -1,6 +1,6 @@
 {
  "id": "ewacs-v1",
- "name": "E-WACS Household Survey (Bacolod City)",
+ "name": "E-WACS Household Survey, Bacolod City",
  "refWidth": 1653,
  "pages": [
   {
@@ -2918,5 +2918,6 @@
     }
    ]
   }
- ]
+ ],
+ "short": "ewacs"
 }
